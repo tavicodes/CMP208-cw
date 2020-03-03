@@ -19,9 +19,13 @@ SceneApp::SceneApp(gef::Platform& platform) :
 	font_(NULL),
 	world_(NULL),
 	player_body_(NULL),
-	button_icon_(NULL)
+	crossButton(NULL),
+	squareButton(NULL),
+	circleButton(NULL),
+	triangleButton(NULL)
 {
 }
+
 
 void SceneApp::Init()
 {
@@ -31,6 +35,8 @@ void SceneApp::Init()
 	// initialise input manager
 	input_manager_ = gef::InputManager::Create(platform_);
 
+	gameState = INIT;
+	IntervalInit();
 }
 
 void SceneApp::CleanUp()
@@ -51,7 +57,38 @@ bool SceneApp::Update(float frame_time)
 
 	input_manager_->Update();
 
-
+	switch (gameState)
+	{
+	case INIT:
+		IntervalUpdate(frame_time);
+		break;
+	case MENU:
+		FrontendUpdate(frame_time);
+		break;
+	case OPTIONS:
+		OptionsUpdate(frame_time);
+		break;
+	case CREDITS:
+		CreditsUpdate(frame_time);
+		break;
+	case LEVEL1:
+		GameUpdate(frame_time);
+		break;
+	case LEVEL2:
+		GameUpdate(frame_time);
+		break;
+	case LOSE:
+		IntervalUpdate(frame_time);
+		break;
+	case WIN:
+		IntervalUpdate(frame_time);
+		break;
+	case EXIT:
+		return IntervalUpdate(frame_time);
+		break;
+	default:
+		break;
+	}
 
 	return true;
 }
@@ -61,7 +98,38 @@ bool SceneApp::Update(float frame_time)
 
 void SceneApp::Render()
 {
-
+	switch (gameState)
+	{
+	case SceneApp::INIT:
+		IntervalRender();
+		break;
+	case SceneApp::MENU:
+		FrontendRender();
+		break;
+	case SceneApp::OPTIONS:
+		OptionsRender();
+		break;
+	case SceneApp::CREDITS:
+		CreditsRender();
+		break;
+	case SceneApp::LEVEL1:
+		GameRender();
+		break;
+	case SceneApp::LEVEL2:
+		GameRender();
+		break;
+	case SceneApp::LOSE:
+		IntervalRender();
+		break;
+	case SceneApp::WIN:
+		IntervalRender();
+		break;
+	case SceneApp::EXIT:
+		IntervalRender();
+		break;
+	default:
+		break;
+	}
 }
 
 void SceneApp::InitPlayer()
@@ -231,18 +299,44 @@ void SceneApp::UpdateSimulation(float frame_time)
 
 void SceneApp::FrontendInit()
 {
-	button_icon_ = CreateTextureFromPNG("playstation-cross-dark-icon.png", platform_);
+	crossButton = CreateTextureFromPNG("playstation-cross-dark-icon.png", platform_);
+	squareButton = CreateTextureFromPNG("playstation-square-dark-icon.png", platform_);
+	circleButton = CreateTextureFromPNG("playstation-circle-dark-icon.png", platform_);
+	triangleButton = CreateTextureFromPNG("playstation-triangle-dark-icon.png", platform_);
 }
 
 void SceneApp::FrontendRelease()
 {
-	delete button_icon_;
-	button_icon_ = NULL;
+	delete crossButton;
+	crossButton = NULL;
 }
 
 void SceneApp::FrontendUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
+	switch (controller->buttons_pressed())
+	{
+	case (1 << 12):
+		FrontendRelease();
+		gameState = LEVEL1;
+		GameInit();
+		break;
+	case (1<<13):
+		FrontendRelease();
+		gameState = EXIT;
+		IntervalInit();
+		break;
+	case (1<<14):
+		gameState = OPTIONS;
+		OptionsInit();
+		break;
+	case (1<<15):
+		gameState = CREDITS;
+		CreditsInit();
+		break;
+	default:
+		break;
+	}
 }
 
 void SceneApp::FrontendRender()
@@ -258,14 +352,31 @@ void SceneApp::FrontendRender()
 		gef::TJ_CENTRE,
 		"PRESS");
 
-	// Render button icon
+	// Render buttons
 	gef::Sprite button;
-	button.set_texture(button_icon_);
+	button.set_texture(triangleButton);
 	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
 	button.set_height(32.0f);
 	button.set_width(32.0f);
 	sprite_renderer_->DrawSprite(button);
 
+	button.set_texture(crossButton);
+	button.set_position(gef::Vector4(platform_.width()*0.05f, platform_.height()*0.1f, -0.99f));
+	button.set_height(32.0f);
+	button.set_width(32.0f);
+	sprite_renderer_->DrawSprite(button);
+
+	button.set_texture(squareButton);
+	button.set_position(gef::Vector4(platform_.width()*0.95f, platform_.height()*0.1f, -0.99f));
+	button.set_height(32.0f);
+	button.set_width(32.0f);
+	sprite_renderer_->DrawSprite(button);
+
+	button.set_texture(circleButton);
+	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.85f, -0.99f));
+	button.set_height(32.0f);
+	button.set_width(32.0f);
+	sprite_renderer_->DrawSprite(button);
 
 	// render "TO START" text
 	font_->RenderText(
@@ -276,7 +387,33 @@ void SceneApp::FrontendRender()
 		gef::TJ_CENTRE,
 		"TO START");
 
+	// render "OPTIONS" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.05f + 82.f, platform_.height()*0.1f - 16.f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"OPTIONS");
 
+	// render "CREDITS" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.95f - 80.f, platform_.height()*0.1f - 16.f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"CREDITS");
+
+	// render "EXIT" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.85f + 32.f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"EXIT");
+	
 	DrawHUD();
 	sprite_renderer_->End();
 }
@@ -320,7 +457,31 @@ void SceneApp::GameRelease()
 void SceneApp::GameUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
-
+	switch (controller->buttons_pressed())
+	{
+	case (1 << 14):
+		if (gameState == LEVEL1)
+		{
+			gameState = LEVEL2;
+			GameInit();
+		}
+		else
+		{
+			GameRelease();
+			gameState = WIN;
+			IntervalInit();
+		}
+		return;
+		break;
+	case (1 << 15):
+		GameRelease();
+		gameState = LOSE;
+		IntervalInit();
+		return;
+		break;
+	default:
+		break;
+	}
 
 	UpdateSimulation(frame_time);
 }
@@ -360,6 +521,223 @@ void SceneApp::GameRender()
 
 	// start drawing sprites, but don't clear the frame buffer
 	sprite_renderer_->Begin(false);
+
+	if (gameState == LEVEL1)
+	{
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.7f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Level 1");
+	}
+	else
+	{
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.7f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Level 2");
+	}
+
 	DrawHUD();
+	sprite_renderer_->End();
+}
+
+void SceneApp::IntervalInit()
+{
+	timer = 0;
+}
+
+void SceneApp::IntervalRelease()
+{
+	timer = NULL;
+}
+
+bool SceneApp::IntervalUpdate(float frame_time)
+{
+	timer += frame_time;
+
+	if (timer > 1)
+	{
+		if (gameState == EXIT)
+		{
+			IntervalRelease();
+			return false;
+		}
+		else
+		{
+			IntervalRelease();
+			gameState = MENU;
+			FrontendInit();
+		}
+	}
+
+	return true;
+}
+
+void SceneApp::IntervalRender()
+{
+	sprite_renderer_->Begin();
+
+	// render text
+	switch (gameState)
+	{
+	case SceneApp::INIT:
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Initialising Game");
+		break;
+	case SceneApp::LOSE:
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"You Lost!");
+		break;
+	case SceneApp::WIN:
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"You Won!");
+		break;
+	case SceneApp::EXIT:
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Exiting Game");
+		break;
+	default:
+		break;
+	}
+	
+	DrawHUD();
+	sprite_renderer_->End();
+}
+
+void SceneApp::OptionsInit()
+{
+}
+
+void SceneApp::OptionsRelease()
+{
+}
+
+void SceneApp::OptionsUpdate(float frame_time)
+{
+	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
+	switch (controller->buttons_pressed())
+	{
+	case (1 << 14):
+		gameState = MENU;
+		FrontendInit();
+		break;
+	default:
+		break;
+	}
+}
+
+void SceneApp::OptionsRender()
+{
+	sprite_renderer_->Begin();
+
+	// render "OPTIONS" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"OPTIONS");
+
+	// Render buttons
+	gef::Sprite button;
+	button.set_texture(crossButton);
+	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	button.set_height(32.0f);
+	button.set_width(32.0f);
+	sprite_renderer_->DrawSprite(button);
+
+	// render "TO MENU" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f + 32.0f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"TO MENU");
+
+	sprite_renderer_->End();
+}
+
+void SceneApp::CreditsInit()
+{
+}
+
+void SceneApp::CreditsRelease()
+{
+}
+
+void SceneApp::CreditsUpdate(float frame_time)
+{
+	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
+	switch (controller->buttons_pressed())
+	{
+	case (1 << 14):
+		gameState = MENU;
+		FrontendInit();
+		break;
+	default:
+		break;
+	}
+}
+
+void SceneApp::CreditsRender()
+{
+	sprite_renderer_->Begin();
+
+	// render "CREDITS" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"CREDITS");
+
+	// Render buttons
+	gef::Sprite button;
+	button.set_texture(crossButton);
+	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	button.set_height(32.0f);
+	button.set_width(32.0f);
+	sprite_renderer_->DrawSprite(button);
+
+	// render "TO MENU" text
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f + 32.0f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"TO MENU");
+
 	sprite_renderer_->End();
 }

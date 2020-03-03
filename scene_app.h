@@ -41,11 +41,21 @@ private:
 	gef::Font* font_;
 	gef::InputManager* input_manager_;
 
+	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, LEVEL1, LEVEL2, LOSE, WIN, EXIT };
+	GAMESTATE gameState;
 
 	//
 	// FRONTEND DECLARATIONS
 	//
-	gef::Texture* button_icon_;
+	gef::Texture* crossButton;
+	gef::Texture* squareButton;
+	gef::Texture* circleButton;
+	gef::Texture* triangleButton;
+
+	//
+	// INTERVAL DECLARATIONS
+	//
+	float timer;
 
 	//
 	// GAME DECLARATIONS
@@ -80,6 +90,21 @@ private:
 	void GameRelease();
 	void GameUpdate(float frame_time);
 	void GameRender();
+
+	void IntervalInit();
+	void IntervalRelease();
+	bool IntervalUpdate(float frame_time);
+	void IntervalRender();
+
+	void OptionsInit();
+	void OptionsRelease();
+	void OptionsUpdate(float frame_time);
+	void OptionsRender();
+
+	void CreditsInit();
+	void CreditsRelease();
+	void CreditsUpdate(float frame_time);
+	void CreditsRender();
 };
 
 #endif // _SCENE_APP_H
