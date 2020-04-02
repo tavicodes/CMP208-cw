@@ -6,7 +6,7 @@
 #include "primitive_builder.h"
 #include <graphics/mesh_instance.h>
 #include <input/input_manager.h>
-#include <box2d/Box2D.h>
+#include <box2d/box2d.h>
 #include "game_object.h"
 
 

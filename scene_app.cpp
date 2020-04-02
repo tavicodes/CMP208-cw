@@ -93,9 +93,6 @@ bool SceneApp::Update(float frame_time)
 	return true;
 }
 
-
-
-
 void SceneApp::Render()
 {
 	switch (gameState)
@@ -135,7 +132,7 @@ void SceneApp::Render()
 void SceneApp::InitPlayer()
 {
 	// setup the mesh for the player
-	player_.set_mesh(primitive_builder_->GetDefaultCubeMesh());
+	player_.set_mesh(primitive_builder_->GetDefaultSphereMesh());
 
 	// create a physics body for the player
 	b2BodyDef player_body_def;
@@ -145,13 +142,15 @@ void SceneApp::InitPlayer()
 	player_body_ = world_->CreateBody(&player_body_def);
 
 	// create the shape for the player
-	b2PolygonShape player_shape;
-	player_shape.SetAsBox(0.5f, 0.5f);
+	b2CircleShape player_shape;
+	player_shape.m_radius = 0.5f;
 
 	// create the fixture
 	b2FixtureDef player_fixture_def;
 	player_fixture_def.shape = &player_shape;
 	player_fixture_def.density = 1.0f;
+	player_fixture_def.restitution = 0.8f;
+	player_fixture_def.friction = 0.2f;
 
 	// create the fixture on the rigid body
 	player_body_->CreateFixture(&player_fixture_def);
@@ -176,6 +175,7 @@ void SceneApp::InitGround()
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
 	body_def.position = b2Vec2(0.0f, 0.0f);
+	body_def.angle = 0.8f;
 
 	ground_body_ = world_->CreateBody(&body_def);
 
