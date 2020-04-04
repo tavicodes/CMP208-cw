@@ -18,12 +18,12 @@ SceneApp::SceneApp(gef::Platform& platform) :
 	input_manager_(NULL),
 	font_(NULL),
 	world_(NULL),
-	player_body_(NULL),
 	crossButton(NULL),
 	squareButton(NULL),
 	circleButton(NULL),
 	triangleButton(NULL)
 {
+	lives = 3;
 }
 
 
@@ -71,16 +71,13 @@ bool SceneApp::Update(float frame_time)
 	case CREDITS:
 		CreditsUpdate(frame_time);
 		break;
-	case LEVEL1:
+	case INGAME:
 		GameUpdate(frame_time);
 		break;
-	case LEVEL2:
+	case PAUSE:
 		GameUpdate(frame_time);
 		break;
-	case LOSE:
-		IntervalUpdate(frame_time);
-		break;
-	case WIN:
+	case GAMEOVER:
 		IntervalUpdate(frame_time);
 		break;
 	case EXIT:
@@ -109,16 +106,13 @@ void SceneApp::Render()
 	case SceneApp::CREDITS:
 		CreditsRender();
 		break;
-	case SceneApp::LEVEL1:
+	case SceneApp::INGAME:
 		GameRender();
 		break;
-	case SceneApp::LEVEL2:
+	case SceneApp::PAUSE:
 		GameRender();
 		break;
-	case SceneApp::LOSE:
-		IntervalRender();
-		break;
-	case SceneApp::WIN:
+	case SceneApp::GAMEOVER:
 		IntervalRender();
 		break;
 	case SceneApp::EXIT:
@@ -129,41 +123,43 @@ void SceneApp::Render()
 	}
 }
 
-void SceneApp::InitPlayer()
+void SceneApp::InitBall()
 {
-	// setup the mesh for the player
-	player_.set_mesh(primitive_builder_->GetDefaultSphereMesh());
+	// setup the mesh for the ball
+	ball_vec_.push_back(new Ball);
+	ball_vec_[0]->set_mesh(primitive_builder_->GetDefaultSphereMesh());
 
-	// create a physics body for the player
-	b2BodyDef player_body_def;
-	player_body_def.type = b2_dynamicBody;
-	player_body_def.position = b2Vec2(0.0f, 4.0f);
+	// create a physics body for the ball
+	b2BodyDef ball_body_def;
+	ball_body_def.type = b2_dynamicBody;
+	ball_body_def.position = b2Vec2(0.0f, 4.0f);
 
-	player_body_ = world_->CreateBody(&player_body_def);
+	ball_body_vec_.push_back(world_->CreateBody(&ball_body_def));
 
-	// create the shape for the player
-	b2CircleShape player_shape;
-	player_shape.m_radius = 0.5f;
+	// create the shape for the ball
+	b2CircleShape ball_shape;
+	ball_shape.m_radius = 0.5f;
 
 	// create the fixture
-	b2FixtureDef player_fixture_def;
-	player_fixture_def.shape = &player_shape;
-	player_fixture_def.density = 1.0f;
-	player_fixture_def.restitution = 0.8f;
-	player_fixture_def.friction = 0.2f;
+	b2FixtureDef ball_fixture_def;
+	ball_fixture_def.shape = &ball_shape;
+	ball_fixture_def.density = 1.0f;
+	ball_fixture_def.restitution = 0.8f;
+	ball_fixture_def.friction = 0.2f;
 
 	// create the fixture on the rigid body
-	player_body_->CreateFixture(&player_fixture_def);
+	ball_body_vec_[0]->CreateFixture(&ball_fixture_def);
 
 	// update visuals from simulation data
-	player_.UpdateFromSimulation(player_body_);
+	ball_vec_[0]->UpdateFromSimulation(ball_body_vec_[0]);
 
 	// create a connection between the rigid body and GameObject
-	player_body_->SetUserData(&player_);
+	ball_body_vec_[0]->SetUserData(&ball_vec_[0]);
 }
 
 void SceneApp::InitGround()
 {
+	ground_.set_type(BARRIER);
 	// ground dimensions
 	gef::Vector4 ground_half_dimensions(5.0f, 0.5f, 0.5f);
 
@@ -192,6 +188,44 @@ void SceneApp::InitGround()
 
 	// update visuals from simulation data
 	ground_.UpdateFromSimulation(ground_body_);
+
+	// create a connection between the rigid body and GameObject
+	ground_body_->SetUserData(&ground_);
+}
+
+void SceneApp::InitLoseTrigger()
+{
+	lose_trigger_.set_type(LOSETRIGGER);
+	// kill trigger dimensions
+	gef::Vector4 lt_half_dimensions(10.0f, 0.2f, 0.5f);
+
+	// setup the mesh for the ground
+	lose_trigger_mesh_ = primitive_builder_->CreateBoxMesh(lt_half_dimensions);
+	lose_trigger_.set_mesh(lose_trigger_mesh_);
+
+	// create a physics body
+	b2BodyDef body_def;
+	body_def.type = b2_staticBody;
+	body_def.position = b2Vec2(0.0f, -10.0f);
+
+	lose_trigger_body_ = world_->CreateBody(&body_def);
+
+	// create the shape
+	b2PolygonShape shape;
+	shape.SetAsBox(lt_half_dimensions.x(), lt_half_dimensions.y());
+
+	// create the fixture
+	b2FixtureDef fixture_def;
+	fixture_def.shape = &shape;
+
+	// create the fixture on the rigid body
+	lose_trigger_body_->CreateFixture(&fixture_def);
+
+	// update visuals from simulation data
+	lose_trigger_.UpdateFromSimulation(lose_trigger_body_);
+
+	// create a connection between the rigid body and GameObject
+	lose_trigger_body_->SetUserData(&lose_trigger_);
 }
 
 
@@ -212,7 +246,7 @@ void SceneApp::DrawHUD()
 	if(font_)
 	{
 		// display frame rate
-		font_->RenderText(sprite_renderer_, gef::Vector4(850.0f, 510.0f, -0.9f), 1.0f, 0xffffffff, gef::TJ_LEFT, "FPS: %.1f", fps_);
+		font_->RenderText(sprite_renderer_, gef::Vector4(700.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_RIGHT, "FPS: %.1f", fps_);		
 	}
 }
 
@@ -243,7 +277,10 @@ void SceneApp::UpdateSimulation(float frame_time)
 	world_->Step(timeStep, velocityIterations, positionIterations);
 
 	// update object visuals from simulation data
-	player_.UpdateFromSimulation(player_body_);
+	for (int ballCount = 0; ballCount < ball_vec_.size(); ballCount++)
+	{
+		ball_vec_[ballCount]->UpdateFromSimulation(ball_body_vec_[ballCount]);
+	}
 
 	// don't have to update the ground visuals as it is static
 
@@ -262,7 +299,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 			b2Body* bodyB = contact->GetFixtureB()->GetBody();
 
 			// DO COLLISION RESPONSE HERE
-			Player* player = NULL;
+			Ball* ball = NULL;
 
 			GameObject* gameObjectA = NULL;
 			GameObject* gameObjectB = NULL;
@@ -270,25 +307,32 @@ void SceneApp::UpdateSimulation(float frame_time)
 			gameObjectA = (GameObject*)bodyA->GetUserData();
 			gameObjectB = (GameObject*)bodyB->GetUserData();
 
-			if (gameObjectA)
+			/*if (gameObjectA)
 			{
-				if (gameObjectA->type() == PLAYER)
+				if (gameObjectA->type() == BALL)
 				{
-					player = (Player*)bodyA->GetUserData();
+					ball = (Ball*)bodyA->GetUserData();
 				}
 			}
 
 			if (gameObjectB)
 			{
-				if (gameObjectB->type() == PLAYER)
+				if (gameObjectB->type() == BALL)
 				{
-					player = (Player*)bodyB->GetUserData();
+					ball = (Ball*)bodyB->GetUserData();
 				}
-			}
+			}*/
 
-			if (player)
+			if (gameObjectA && gameObjectB)
 			{
-				player->DecrementHealth();
+				if (gameObjectA->type() == BALL && gameObjectB->type() == LOSETRIGGER)
+				{
+					lives--;
+				}
+				else if (gameObjectB->type() == BALL && gameObjectA->type() == LOSETRIGGER)
+				{
+					lives--;
+				}
 			}
 		}
 
@@ -318,7 +362,7 @@ void SceneApp::FrontendUpdate(float frame_time)
 	{
 	case (1 << 12):
 		FrontendRelease();
-		gameState = LEVEL1;
+		gameState = INGAME;
 		GameInit();
 		break;
 	case (1<<13):
@@ -433,12 +477,21 @@ void SceneApp::GameInit()
 	b2Vec2 gravity(0.0f, -9.81f);
 	world_ = new b2World(gravity);
 
-	InitPlayer();
+	InitBall();
 	InitGround();
+	InitLoseTrigger();
 }
 
 void SceneApp::GameRelease()
 {
+	// destroy the ball objects and clear the vector
+	for (auto ball_obj : ball_vec_)
+	{
+		delete ball_obj;
+	}
+	ball_vec_.clear();
+	ball_body_vec_.clear();
+
 	// destroying the physics world also destroys all the objects within it
 	delete world_;
 	world_ = NULL;
@@ -457,25 +510,23 @@ void SceneApp::GameRelease()
 void SceneApp::GameUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
+	gef::DebugOut("Buttons pressed: %i\n", controller->buttons_down());
 	switch (controller->buttons_pressed())
 	{
-	case (1 << 14):
-		if (gameState == LEVEL1)
+	case (gef_SONY_CTRL_SELECT):
+		if (gameState == INGAME)
 		{
-			gameState = LEVEL2;
-			GameInit();
+			gameState = PAUSE;
 		}
 		else
 		{
-			GameRelease();
-			gameState = WIN;
-			IntervalInit();
+			gameState = INGAME;
 		}
 		return;
 		break;
-	case (1 << 15):
+	case (gef_SONY_CTRL_CIRCLE):
 		GameRelease();
-		gameState = LOSE;
+		gameState = GAMEOVER;
 		IntervalInit();
 		return;
 		break;
@@ -483,7 +534,10 @@ void SceneApp::GameUpdate(float frame_time)
 		break;
 	}
 
-	UpdateSimulation(frame_time);
+	if (gameState == INGAME)
+	{
+		UpdateSimulation(frame_time);
+	}
 }
 
 void SceneApp::GameRender()
@@ -498,8 +552,8 @@ void SceneApp::GameRender()
 	renderer_3d_->set_projection_matrix(projection_matrix);
 
 	// view
-	gef::Vector4 camera_eye(-2.0f, 2.0f, 10.0f);
-	gef::Vector4 camera_lookat(0.0f, 0.0f, 0.0f);
+	gef::Vector4 camera_eye(0.0f, -35.0f, 30.0f);
+	gef::Vector4 camera_lookat(0.0f, -10.0f, 0.0f);
 	gef::Vector4 camera_up(0.0f, 1.0f, 0.0f);
 	gef::Matrix44 view_matrix;
 	view_matrix.LookAt(camera_eye, camera_lookat, camera_up);
@@ -511,10 +565,14 @@ void SceneApp::GameRender()
 
 	// draw ground
 	renderer_3d_->DrawMesh(ground_);
+	renderer_3d_->DrawMesh(lose_trigger_);
 
-	// draw player
-	renderer_3d_->set_override_material(&primitive_builder_->red_material());
-	renderer_3d_->DrawMesh(player_);
+	// draw ball
+	renderer_3d_->set_override_material(&primitive_builder_->green_material());
+	for (int ballCount = 0; ballCount < ball_vec_.size(); ballCount++)
+	{
+		renderer_3d_->DrawMesh(*ball_vec_[ballCount]);
+	}
 	renderer_3d_->set_override_material(NULL);
 
 	renderer_3d_->End();
@@ -522,27 +580,20 @@ void SceneApp::GameRender()
 	// start drawing sprites, but don't clear the frame buffer
 	sprite_renderer_->Begin(false);
 
-	if (gameState == LEVEL1)
+	if (gameState == INGAME)
 	{
-
-		font_->RenderText(
-			sprite_renderer_,
-			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.7f, -0.99f),
-			1.0f,
-			0xffffffff,
-			gef::TJ_CENTRE,
-			"Level 1");
+		font_->RenderText(sprite_renderer_, 
+			gef::Vector4(50.f, 10.f, -0.9f), 
+			1.0f, 0xffffffff, gef::TJ_LEFT, 
+			"Lives: %i", lives);
 	}
 	else
 	{
 
-		font_->RenderText(
-			sprite_renderer_,
+		font_->RenderText(sprite_renderer_,
 			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.7f, -0.99f),
-			1.0f,
-			0xffffffff,
-			gef::TJ_CENTRE,
-			"Level 2");
+			1.0f, 0xffffffff, gef::TJ_CENTRE,
+			"Paused");
 	}
 
 	DrawHUD();
@@ -597,23 +648,14 @@ void SceneApp::IntervalRender()
 			gef::TJ_CENTRE,
 			"Initialising Game");
 		break;
-	case SceneApp::LOSE:
+	case SceneApp::GAMEOVER:
 		font_->RenderText(
 			sprite_renderer_,
 			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
 			1.0f,
 			0xffffffff,
 			gef::TJ_CENTRE,
-			"You Lost!");
-		break;
-	case SceneApp::WIN:
-		font_->RenderText(
-			sprite_renderer_,
-			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
-			1.0f,
-			0xffffffff,
-			gef::TJ_CENTRE,
-			"You Won!");
+			"Game Over! \n\nYour score: ");
 		break;
 	case SceneApp::EXIT:
 		font_->RenderText(

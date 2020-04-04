@@ -6,9 +6,10 @@
 
 enum OBJECT_TYPE
 {
-	PLAYER,
-	ENEMY,
-	BULLET
+	BALL,
+	FLIPPER,
+	BARRIER,
+	LOSETRIGGER
 };
 
 class GameObject : public gef::MeshInstance
@@ -23,11 +24,10 @@ private:
 	OBJECT_TYPE type_;
 };
 
-class Player : public GameObject
+class Ball : public GameObject
 {
 public:
-	Player();
-	void DecrementHealth();
+	Ball();
 };
 
 #endif // _GAME_OBJECT_H

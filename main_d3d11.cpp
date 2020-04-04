@@ -5,8 +5,8 @@ unsigned int sceLibcHeapSize = 128*1024*1024;	// Sets up the heap area size as 1
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pScmdline, int iCmdshow)
 {
-	// initialisation
-	gef::PlatformD3D11 platform(hInstance, 960, 544, false, true);
+	// initialisation with 4:3 (vertical) aspect ratio
+	gef::PlatformD3D11 platform(hInstance, 750, 1000, false, true);
 
 	SceneApp myApp(platform);
 	myApp.Run();

@@ -8,6 +8,7 @@
 #include <input/input_manager.h>
 #include <box2d/box2d.h>
 #include "game_object.h"
+#include <vector>
 
 
 // FRAMEWORK FORWARD DECLARATIONS
@@ -29,8 +30,9 @@ public:
 	bool Update(float frame_time);
 	void Render();
 private:
-	void InitPlayer();
+	void InitBall();
 	void InitGround();
+	void InitLoseTrigger();
 	void InitFont();
 	void CleanUpFont();
 	void DrawHUD();
@@ -41,7 +43,7 @@ private:
 	gef::Font* font_;
 	gef::InputManager* input_manager_;
 
-	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, LEVEL1, LEVEL2, LOSE, WIN, EXIT };
+	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, INGAME, PAUSE, GAMEOVER, EXIT };
 	GAMESTATE gameState;
 
 	//
@@ -66,14 +68,20 @@ private:
 	// create the physics world
 	b2World* world_;
 
-	// player variables
-	Player player_;
-	b2Body* player_body_;
+	// ball variables
+	int lives;
+	std::vector<Ball*> ball_vec_;
+	std::vector<b2Body*> ball_body_vec_;
 
 	// ground variables
 	gef::Mesh* ground_mesh_;
 	GameObject ground_;
 	b2Body* ground_body_;
+
+	// lose trigger variables
+	gef::Mesh* lose_trigger_mesh_;
+	GameObject lose_trigger_;
+	b2Body* lose_trigger_body_;
 
 	// audio variables
 	int sfx_id_;

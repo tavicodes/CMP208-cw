@@ -29,14 +29,9 @@ void GameObject::MyCollisionResponse()
 	//gef::DebugOut("A collision has happened.\n");
 }
 
-Player::Player()
+Ball::Ball()
 {
-	set_type(PLAYER);
-}
-
-void Player::DecrementHealth()
-{
-	//gef::DebugOut("Player has taken damage.\n");
+	set_type(BALL);
 }
 
 
