@@ -30,4 +30,15 @@ public:
 	Ball();
 };
 
+class Flipper : public GameObject
+{
+public:
+	Flipper();
+
+	void set_left(bool option) { left = option; }
+	bool get_left() { return left; }
+private:
+	bool left;
+};
+
 #endif // _GAME_OBJECT_H

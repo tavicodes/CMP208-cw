@@ -31,7 +31,8 @@ public:
 	void Render();
 private:
 	void InitBall();
-	void InitGround();
+	void InitBoard();
+	void InitFlippers();
 	void InitLoseTrigger();
 	void InitFont();
 	void CleanUpFont();
@@ -73,10 +74,16 @@ private:
 	std::vector<Ball*> ball_vec_;
 	std::vector<b2Body*> ball_body_vec_;
 
-	// ground variables
-	gef::Mesh* ground_mesh_;
-	GameObject ground_;
-	b2Body* ground_body_;
+	// board variables
+	gef::Mesh* board_mesh_;
+	GameObject board_;
+	b2Body* board_body_;
+
+	gef::Mesh* flipper_mesh_;
+	std::vector<Flipper*> flipper_vec_;
+	std::vector<b2Body*> flipper_body_vec_;
+	std::vector<b2Body*> flipper_pin_body_vec_;
+	std::vector<b2RevoluteJoint*> flipper_joint_vec_;
 
 	// lose trigger variables
 	gef::Mesh* lose_trigger_mesh_;

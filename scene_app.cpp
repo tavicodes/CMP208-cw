@@ -157,40 +157,123 @@ void SceneApp::InitBall()
 	ball_body_vec_[0]->SetUserData(&ball_vec_[0]);
 }
 
-void SceneApp::InitGround()
+void SceneApp::InitBoard()
 {
-	ground_.set_type(BARRIER);
-	// ground dimensions
-	gef::Vector4 ground_half_dimensions(5.0f, 0.5f, 0.5f);
+	board_.set_type(BARRIER);
+	// board dimensions
+	gef::Vector4 board_half_dimensions(5.0f, 0.5f, 0.5f);
 
-	// setup the mesh for the ground
-	ground_mesh_ = primitive_builder_->CreateBoxMesh(ground_half_dimensions);
-	ground_.set_mesh(ground_mesh_);
+	// setup the mesh for the board
+	board_mesh_ = primitive_builder_->CreateBoxMesh(board_half_dimensions);
+	board_.set_mesh(board_mesh_);
 
 	// create a physics body
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
 	body_def.position = b2Vec2(0.0f, 0.0f);
-	body_def.angle = 0.8f;
+	body_def.angle = gef::DegToRad(90.f);
 
-	ground_body_ = world_->CreateBody(&body_def);
+	board_body_ = world_->CreateBody(&body_def);
 
 	// create the shape
 	b2PolygonShape shape;
-	shape.SetAsBox(ground_half_dimensions.x(), ground_half_dimensions.y());
+	shape.SetAsBox(board_half_dimensions.x(), board_half_dimensions.y());
 
 	// create the fixture
 	b2FixtureDef fixture_def;
 	fixture_def.shape = &shape;
 
 	// create the fixture on the rigid body
-	ground_body_->CreateFixture(&fixture_def);
+	board_body_->CreateFixture(&fixture_def);
 
 	// update visuals from simulation data
-	ground_.UpdateFromSimulation(ground_body_);
+	board_.UpdateFromSimulation(board_body_);
 
 	// create a connection between the rigid body and GameObject
-	ground_body_->SetUserData(&ground_);
+	board_body_->SetUserData(&board_);
+}
+
+void SceneApp::InitFlippers()
+{
+	// flipper dimensions
+	gef::Vector4 flipper_half_dimensions(3.0f, 0.5f, 0.5f);
+	// setup the mesh for the flipper
+	flipper_mesh_ = primitive_builder_->CreateBoxMesh(flipper_half_dimensions);
+
+	flipper_vec_.push_back(new Flipper);
+	flipper_vec_[0]->set_mesh(flipper_mesh_);
+	flipper_vec_[0]->set_left(true);
+
+	flipper_vec_.push_back(new Flipper);
+	flipper_vec_[1]->set_mesh(flipper_mesh_);
+	flipper_vec_[1]->set_left(false);
+
+	// create a physics body
+	b2BodyDef flipper_def;
+	flipper_def.type = b2_dynamicBody;
+	b2BodyDef flipper_pin_def;
+	flipper_pin_def.type = b2_staticBody;
+
+	// create physics joint
+	b2RevoluteJointDef flipper_joint_def;
+	flipper_joint_def.localAnchorA.Set(0, 0);
+	flipper_joint_def.collideConnected = false;
+	flipper_joint_def.enableLimit = true;
+	flipper_joint_def.enableMotor = true;
+	flipper_joint_def.motorSpeed = 0.f;
+	flipper_joint_def.maxMotorTorque = 1000;
+
+	// flipper one
+
+	flipper_def.position = b2Vec2(-3.f, -7.0f);
+	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
+
+	flipper_pin_def.position = flipper_def.position - b2Vec2(2.5f, 0);
+	flipper_pin_body_vec_.push_back(world_->CreateBody(&flipper_pin_def));
+
+	flipper_joint_def.bodyA = flipper_pin_body_vec_[0];
+	flipper_joint_def.bodyB = flipper_body_vec_[0];
+	flipper_joint_def.localAnchorB.Set(-1.75f, 0);
+	flipper_joint_def.lowerAngle = gef::DegToRad(-30.f);
+	flipper_joint_def.upperAngle = gef::DegToRad(45.f);
+	flipper_joint_vec_.push_back((b2RevoluteJoint*)world_->CreateJoint(&flipper_joint_def));
+
+	// flipper two
+
+	flipper_def.position = b2Vec2(3.f, -7.0f);
+	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
+
+	flipper_pin_def.position = flipper_def.position + b2Vec2(2.5f, 0);
+	flipper_pin_body_vec_.push_back(world_->CreateBody(&flipper_pin_def));
+
+	flipper_joint_def.bodyA= flipper_pin_body_vec_[1];
+	flipper_joint_def.bodyB = flipper_body_vec_[1];
+	flipper_joint_def.localAnchorB.Set(1.75f, 0);
+	flipper_joint_def.lowerAngle = gef::DegToRad(-45.f);
+	flipper_joint_def.upperAngle = gef::DegToRad(30.f);
+	flipper_joint_vec_.push_back((b2RevoluteJoint*)world_->CreateJoint(&flipper_joint_def));
+
+	// create the shape
+	b2PolygonShape shape;
+	shape.SetAsBox(flipper_half_dimensions.x(), flipper_half_dimensions.y());
+
+	// create the fixture
+	b2FixtureDef fixture_def;
+	fixture_def.shape = &shape;
+	fixture_def.density = 1.0f;
+
+	for (int i = 0; i < 2; i++)
+	{
+		// create the fixture on the rigid body
+		flipper_body_vec_[i]->CreateFixture(&fixture_def);
+
+		// update visuals from simulation data
+		flipper_vec_[i]->UpdateFromSimulation(flipper_body_vec_[i]);
+
+		// create a connection between the rigid body and GameObject
+		flipper_body_vec_[i]->SetUserData(&flipper_vec_[i]);
+	}
+
 }
 
 void SceneApp::InitLoseTrigger()
@@ -199,14 +282,14 @@ void SceneApp::InitLoseTrigger()
 	// kill trigger dimensions
 	gef::Vector4 lt_half_dimensions(10.0f, 0.2f, 0.5f);
 
-	// setup the mesh for the ground
+	// setup the mesh for the board
 	lose_trigger_mesh_ = primitive_builder_->CreateBoxMesh(lt_half_dimensions);
 	lose_trigger_.set_mesh(lose_trigger_mesh_);
 
 	// create a physics body
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
-	body_def.position = b2Vec2(0.0f, -10.0f);
+	body_def.position = b2Vec2(0.0f, -15.0f);
 
 	lose_trigger_body_ = world_->CreateBody(&body_def);
 
@@ -282,7 +365,12 @@ void SceneApp::UpdateSimulation(float frame_time)
 		ball_vec_[ballCount]->UpdateFromSimulation(ball_body_vec_[ballCount]);
 	}
 
-	// don't have to update the ground visuals as it is static
+	for (int flipperCount = 0; flipperCount < flipper_vec_.size(); flipperCount++)
+	{
+		flipper_vec_[flipperCount]->UpdateFromSimulation(flipper_body_vec_[flipperCount]);
+	}
+
+	// don't have to update the board visuals as it is static
 
 	// collision detection
 	// get the head of the contact list
@@ -478,7 +566,8 @@ void SceneApp::GameInit()
 	world_ = new b2World(gravity);
 
 	InitBall();
-	InitGround();
+	InitBoard();
+	InitFlippers();
 	InitLoseTrigger();
 }
 
@@ -492,12 +581,26 @@ void SceneApp::GameRelease()
 	ball_vec_.clear();
 	ball_body_vec_.clear();
 
+	// destroy the flipper objects and clear the vector
+	for (int jointCount = 0; jointCount < flipper_joint_vec_.size(); jointCount++)
+	{
+		world_->DestroyJoint(flipper_joint_vec_[jointCount]);
+	}
+	flipper_joint_vec_.clear();
+	for (auto flipper_obj : flipper_vec_)
+	{
+		delete flipper_obj;
+	}
+	flipper_vec_.clear();
+	flipper_body_vec_.clear();
+	flipper_pin_body_vec_.clear();
+
 	// destroying the physics world also destroys all the objects within it
 	delete world_;
 	world_ = NULL;
 
-	delete ground_mesh_;
-	ground_mesh_ = NULL;
+	delete board_mesh_;
+	board_mesh_ = NULL;
 
 	delete primitive_builder_;
 	primitive_builder_ = NULL;
@@ -511,6 +614,30 @@ void SceneApp::GameUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 	gef::DebugOut("Buttons pressed: %i\n", controller->buttons_down());
+
+	switch (controller->buttons_released())
+	{
+	case (gef_SONY_CTRL_SQUARE):
+		for (int i = 0; i < flipper_vec_.size(); i++)
+		{
+			if (flipper_vec_[i]->get_left())
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
+			}
+		}
+		break;
+	case (gef_SONY_CTRL_CROSS):
+		for (int i = 0; i < flipper_vec_.size(); i++)
+		{
+			if (!flipper_vec_[i]->get_left())
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
+			}
+		}
+		break;
+	default:
+		break;
+	}
 	switch (controller->buttons_pressed())
 	{
 	case (gef_SONY_CTRL_SELECT):
@@ -529,6 +656,24 @@ void SceneApp::GameUpdate(float frame_time)
 		gameState = GAMEOVER;
 		IntervalInit();
 		return;
+		break;
+	case (gef_SONY_CTRL_SQUARE):
+		for (int i = 0; i < flipper_vec_.size(); i++)
+		{
+			if (flipper_vec_[i]->get_left())
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
+			}
+		}
+		break;
+	case (gef_SONY_CTRL_CROSS):
+		for (int i = 0; i < flipper_vec_.size(); i++)
+		{
+			if (!flipper_vec_[i]->get_left())
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
+			}
+		}
 		break;
 	default:
 		break;
@@ -558,14 +703,19 @@ void SceneApp::GameRender()
 	gef::Matrix44 view_matrix;
 	view_matrix.LookAt(camera_eye, camera_lookat, camera_up);
 	renderer_3d_->set_view_matrix(view_matrix);
-
-
+	
 	// draw 3d geometry
 	renderer_3d_->Begin();
 
-	// draw ground
-	renderer_3d_->DrawMesh(ground_);
+	// draw board
+	renderer_3d_->DrawMesh(board_);
 	renderer_3d_->DrawMesh(lose_trigger_);
+
+	// draw flippers
+	for (int flipperCount = 0; flipperCount < flipper_vec_.size(); flipperCount++)
+	{
+		renderer_3d_->DrawMesh(*flipper_vec_[flipperCount]);
+	}
 
 	// draw ball
 	renderer_3d_->set_override_material(&primitive_builder_->green_material());

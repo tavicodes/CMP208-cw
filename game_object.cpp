@@ -34,4 +34,8 @@ Ball::Ball()
 	set_type(BALL);
 }
 
-
+Flipper::Flipper()
+{
+	set_type(FLIPPER);
+	left = true;
+}
