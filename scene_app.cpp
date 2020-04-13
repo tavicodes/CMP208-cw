@@ -143,8 +143,8 @@ void SceneApp::InitBall()
 	// create the fixture
 	b2FixtureDef ball_fixture_def;
 	ball_fixture_def.shape = &ball_shape;
-	ball_fixture_def.density = 1.0f;
-	ball_fixture_def.restitution = 0.8f;
+	ball_fixture_def.density = 0.7f;
+	ball_fixture_def.restitution = 0.85f;
 	ball_fixture_def.friction = 0.2f;
 
 	// create the fixture on the rigid body
@@ -193,6 +193,54 @@ void SceneApp::InitBoard()
 	board_body_->SetUserData(&board_);
 }
 
+void SceneApp::InitBarriers()
+{
+	int barrierCount = 4;
+
+	// barrier dimensions
+	gef::Vector4 barrier_half_dimensions(0.4f, 0.5f, 1.0f);
+	// setup the mesh for the barrier
+	barrier_mesh_ = primitive_builder_->CreateBoxMesh(barrier_half_dimensions);
+
+	for (int i = 0; i < barrierCount; i++)
+	{
+		barrier_vec_.push_back(new Barrier);
+		barrier_vec_[i]->set_mesh(barrier_mesh_);
+	}
+
+	// create a physics body for the barrier
+	b2BodyDef barrier_body_def;
+	barrier_body_def.type = b2_kinematicBody;
+
+	for (int i = 0; i < barrierCount; i++)
+	{
+		barrier_body_def.position = b2Vec2(-2.0f + i*0.5f, 4.0f);
+		barrier_body_vec_.push_back(world_->CreateBody(&barrier_body_def));
+	}
+
+
+	// create the shape for the barrier
+	b2PolygonShape shape;
+	shape.SetAsBox(barrier_half_dimensions.x(), barrier_half_dimensions.y());
+
+	// create the fixture
+	b2FixtureDef fixture_def;
+	fixture_def.shape = &shape;
+	fixture_def.density = 1.0f;
+
+	for (int i = 0; i < 2; i++)
+	{
+		// create the fixture on the rigid body
+		barrier_body_vec_[i]->CreateFixture(&fixture_def);
+
+		// update visuals from simulation data
+		barrier_vec_[i]->UpdateFromSimulation(barrier_body_vec_[i]);
+
+		// create a connection between the rigid body and GameObject
+		barrier_body_vec_[i]->SetUserData(&barrier_vec_[i]);
+	}
+}
+
 void SceneApp::InitFlippers()
 {
 	// flipper dimensions
@@ -235,7 +283,7 @@ void SceneApp::InitFlippers()
 	flipper_joint_def.bodyB = flipper_body_vec_[0];
 	flipper_joint_def.localAnchorB.Set(-1.75f, 0);
 	flipper_joint_def.lowerAngle = gef::DegToRad(-30.f);
-	flipper_joint_def.upperAngle = gef::DegToRad(45.f);
+	flipper_joint_def.upperAngle = gef::DegToRad(30.f);
 	flipper_joint_vec_.push_back((b2RevoluteJoint*)world_->CreateJoint(&flipper_joint_def));
 
 	// flipper two
@@ -249,7 +297,7 @@ void SceneApp::InitFlippers()
 	flipper_joint_def.bodyA= flipper_pin_body_vec_[1];
 	flipper_joint_def.bodyB = flipper_body_vec_[1];
 	flipper_joint_def.localAnchorB.Set(1.75f, 0);
-	flipper_joint_def.lowerAngle = gef::DegToRad(-45.f);
+	flipper_joint_def.lowerAngle = gef::DegToRad(-30.f);
 	flipper_joint_def.upperAngle = gef::DegToRad(30.f);
 	flipper_joint_vec_.push_back((b2RevoluteJoint*)world_->CreateJoint(&flipper_joint_def));
 
@@ -413,11 +461,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 
 			if (gameObjectA && gameObjectB)
 			{
-				if (gameObjectA->type() == BALL && gameObjectB->type() == LOSETRIGGER)
-				{
-					lives--;
-				}
-				else if (gameObjectB->type() == BALL && gameObjectA->type() == LOSETRIGGER)
+				if (gameObjectA->type() == LOSETRIGGER || gameObjectB->type() == LOSETRIGGER)
 				{
 					lives--;
 				}
@@ -562,11 +606,12 @@ void SceneApp::GameInit()
 	SetupLights();
 
 	// initialise the physics world
-	b2Vec2 gravity(0.0f, -9.81f);
+	b2Vec2 gravity(0.0f, -5.f);
 	world_ = new b2World(gravity);
 
 	InitBall();
 	InitBoard();
+	InitBarriers();
 	InitFlippers();
 	InitLoseTrigger();
 }
@@ -580,6 +625,14 @@ void SceneApp::GameRelease()
 	}
 	ball_vec_.clear();
 	ball_body_vec_.clear();
+
+	// destroy the ball objects and clear the vector
+	for (auto barrier_obj : barrier_vec_)
+	{
+		delete barrier_obj;
+	}
+	barrier_vec_.clear();
+	barrier_body_vec_.clear();
 
 	// destroy the flipper objects and clear the vector
 	for (int jointCount = 0; jointCount < flipper_joint_vec_.size(); jointCount++)
@@ -635,6 +688,18 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 		}
 		break;
+	case (49152):
+		for (int i = 0; i < flipper_vec_.size(); i++)
+		{
+			if (flipper_vec_[i]->get_left())
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
+			}
+			else
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
+			}
+		}
 	default:
 		break;
 	}
@@ -675,6 +740,18 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 		}
 		break;
+	case (49152):
+		for (int i = 0; i < flipper_vec_.size(); i++)
+		{
+			if (flipper_vec_[i]->get_left())
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
+			}
+			else
+			{
+				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
+			}
+		}
 	default:
 		break;
 	}
@@ -715,6 +792,11 @@ void SceneApp::GameRender()
 	for (int flipperCount = 0; flipperCount < flipper_vec_.size(); flipperCount++)
 	{
 		renderer_3d_->DrawMesh(*flipper_vec_[flipperCount]);
+	}
+
+	for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
+	{
+		renderer_3d_->DrawMesh(*barrier_vec_[barrierCount]);
 	}
 
 	// draw ball

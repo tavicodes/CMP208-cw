@@ -41,4 +41,15 @@ private:
 	bool left;
 };
 
+class Barrier : public GameObject
+{
+public:
+	Barrier();
+
+	void set_hit(bool option) { hit = option; }
+	bool get_hit() { return hit; }
+private:
+	bool hit;
+};
+
 #endif // _GAME_OBJECT_H

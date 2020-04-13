@@ -32,6 +32,7 @@ public:
 private:
 	void InitBall();
 	void InitBoard();
+	void InitBarriers();
 	void InitFlippers();
 	void InitLoseTrigger();
 	void InitFont();
@@ -79,6 +80,12 @@ private:
 	GameObject board_;
 	b2Body* board_body_;
 
+	// barrier variables
+	gef::Mesh* barrier_mesh_;
+	std::vector<Barrier*> barrier_vec_;
+	std::vector<b2Body*> barrier_body_vec_;
+
+	// flipper variables
 	gef::Mesh* flipper_mesh_;
 	std::vector<Flipper*> flipper_vec_;
 	std::vector<b2Body*> flipper_body_vec_;

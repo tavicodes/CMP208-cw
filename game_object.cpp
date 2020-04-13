@@ -39,3 +39,9 @@ Flipper::Flipper()
 	set_type(FLIPPER);
 	left = true;
 }
+
+Barrier::Barrier()
+{
+	set_type(BARRIER);
+	hit = false;
+}
