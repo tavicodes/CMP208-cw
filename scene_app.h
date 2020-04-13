@@ -6,6 +6,7 @@
 #include "primitive_builder.h"
 #include <graphics/mesh_instance.h>
 #include <input/input_manager.h>
+#include "graphics/scene.h"
 #include <box2d/box2d.h>
 #include "game_object.h"
 #include <vector>
@@ -35,9 +36,14 @@ private:
 	void InitBarriers();
 	void InitFlippers();
 	void InitLoseTrigger();
+
+	gef::Scene* LoadSceneAssets(gef::Platform& platform, const char* filename);
+	gef::Mesh* GetMeshFromSceneAssets(gef::Scene* scene);
+
 	void InitFont();
 	void CleanUpFont();
 	void DrawHUD();
+
 	void SetupLights();
 	void UpdateSimulation(float frame_time);
     
@@ -76,7 +82,7 @@ private:
 	std::vector<b2Body*> ball_body_vec_;
 
 	// board variables
-	gef::Mesh* board_mesh_;
+	gef::Scene* scene_assets_;
 	GameObject board_;
 	b2Body* board_body_;
 

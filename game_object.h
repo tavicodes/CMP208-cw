@@ -9,7 +9,9 @@ enum OBJECT_TYPE
 	BALL,
 	FLIPPER,
 	BARRIER,
-	LOSETRIGGER
+	BUMPER,
+	LOSETRIGGER,
+	BOARD
 };
 
 class GameObject : public gef::MeshInstance

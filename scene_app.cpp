@@ -132,7 +132,7 @@ void SceneApp::InitBall()
 	// create a physics body for the ball
 	b2BodyDef ball_body_def;
 	ball_body_def.type = b2_dynamicBody;
-	ball_body_def.position = b2Vec2(0.0f, 4.0f);
+	ball_body_def.position = b2Vec2(-2.0f, 4.0f);
 
 	ball_body_vec_.push_back(world_->CreateBody(&ball_body_def));
 
@@ -144,7 +144,7 @@ void SceneApp::InitBall()
 	b2FixtureDef ball_fixture_def;
 	ball_fixture_def.shape = &ball_shape;
 	ball_fixture_def.density = 0.7f;
-	ball_fixture_def.restitution = 0.85f;
+	ball_fixture_def.restitution = 0.5f;
 	ball_fixture_def.friction = 0.2f;
 
 	// create the fixture on the rigid body
@@ -159,33 +159,57 @@ void SceneApp::InitBall()
 
 void SceneApp::InitBoard()
 {
-	board_.set_type(BARRIER);
-	// board dimensions
-	gef::Vector4 board_half_dimensions(5.0f, 0.5f, 0.5f);
-
-	// setup the mesh for the board
-	board_mesh_ = primitive_builder_->CreateBoxMesh(board_half_dimensions);
-	board_.set_mesh(board_mesh_);
+	board_.set_type(BOARD);
+	// load the assets in from the .scn
+	const char* scene_asset_filename = "pinballFrame.scn";
+	scene_assets_ = LoadSceneAssets(platform_, scene_asset_filename);
+	if (scene_assets_)
+	{
+		board_.set_mesh(GetMeshFromSceneAssets(scene_assets_));
+		gef::DebugOut("Scene file loaded!\n");
+	}
+	else
+	{
+		gef::DebugOut("Scene file %s failed to load\n", scene_asset_filename);
+	}
 
 	// create a physics body
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
-	body_def.position = b2Vec2(0.0f, 0.0f);
-	body_def.angle = gef::DegToRad(90.f);
 
 	board_body_ = world_->CreateBody(&body_def);
 
 	// create the shape
-	b2PolygonShape shape;
-	shape.SetAsBox(board_half_dimensions.x(), board_half_dimensions.y());
+	b2Vec2 frameVertices[19];
+	frameVertices[0].Set(8.227069, -29.047207);
+	frameVertices[1].Set(8.230977, 10.862797);
+	frameVertices[2].Set(8.072821, 12.521641);
+	frameVertices[3].Set(7.604436, 14.116737);
+	frameVertices[4].Set(6.843820, 15.586790);
+	frameVertices[5].Set(5.820206, 16.875298);
+	frameVertices[6].Set(4.572926, 17.932747);
+	frameVertices[7].Set(3.149917, 18.718502);
+	frameVertices[8].Set(1.605863, 19.202366);
+	frameVertices[9].Set(0.000113, 19.365749);
+	frameVertices[10].Set(-1.605649, 19.202366);
+	frameVertices[11].Set(-3.149703, 18.718498);
+	frameVertices[12].Set(-4.572711, 17.932739);
+	frameVertices[13].Set(-5.819987, 16.875290);
+	frameVertices[14].Set(-6.843601, 15.586779);
+	frameVertices[15].Set(-7.604213, 14.116732);
+	frameVertices[16].Set(-8.072598, 12.521635);
+	frameVertices[17].Set(-8.230750, 10.862789);
+	frameVertices[18].Set(-8.228932, -29.047207);
+
+	b2ChainShape shape;
+	shape.CreateChain(frameVertices, 19);
 
 	// create the fixture
 	b2FixtureDef fixture_def;
 	fixture_def.shape = &shape;
-
+	
 	// create the fixture on the rigid body
 	board_body_->CreateFixture(&fixture_def);
-
 	// update visuals from simulation data
 	board_.UpdateFromSimulation(board_body_);
 
@@ -268,7 +292,6 @@ void SceneApp::InitFlippers()
 	flipper_joint_def.collideConnected = false;
 	flipper_joint_def.enableLimit = true;
 	flipper_joint_def.enableMotor = true;
-	flipper_joint_def.motorSpeed = 0.f;
 	flipper_joint_def.maxMotorTorque = 1000;
 
 	// flipper one
@@ -284,6 +307,7 @@ void SceneApp::InitFlippers()
 	flipper_joint_def.localAnchorB.Set(-1.75f, 0);
 	flipper_joint_def.lowerAngle = gef::DegToRad(-30.f);
 	flipper_joint_def.upperAngle = gef::DegToRad(30.f);
+	flipper_joint_def.motorSpeed = -500.f;
 	flipper_joint_vec_.push_back((b2RevoluteJoint*)world_->CreateJoint(&flipper_joint_def));
 
 	// flipper two
@@ -299,6 +323,7 @@ void SceneApp::InitFlippers()
 	flipper_joint_def.localAnchorB.Set(1.75f, 0);
 	flipper_joint_def.lowerAngle = gef::DegToRad(-30.f);
 	flipper_joint_def.upperAngle = gef::DegToRad(30.f);
+	flipper_joint_def.motorSpeed = 500.f;
 	flipper_joint_vec_.push_back((b2RevoluteJoint*)world_->CreateJoint(&flipper_joint_def));
 
 	// create the shape
@@ -309,6 +334,7 @@ void SceneApp::InitFlippers()
 	b2FixtureDef fixture_def;
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
+	fixture_def.restitution = 0.f;
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -359,6 +385,37 @@ void SceneApp::InitLoseTrigger()
 	lose_trigger_body_->SetUserData(&lose_trigger_);
 }
 
+gef::Scene* SceneApp::LoadSceneAssets(gef::Platform& platform, const char* filename)
+{
+	gef::Scene* scene = new gef::Scene();
+
+	if (scene->ReadSceneFromFile(platform, filename))
+	{
+		// if scene file loads successful
+		// create material and mesh resources from the scene data
+		scene->CreateMaterials(platform);
+		scene->CreateMeshes(platform);
+	}
+	else
+	{
+		delete scene;
+		scene = NULL;
+	}
+
+	return scene;
+}
+
+gef::Mesh* SceneApp::GetMeshFromSceneAssets(gef::Scene* scene)
+{
+	gef::Mesh* mesh = NULL;
+
+	// if the scene data contains at least one mesh
+	// return the first mesh
+	if (scene && scene->meshes.size() > 0)
+		mesh = scene->meshes.front();
+
+	return mesh;
+}
 
 void SceneApp::InitFont()
 {
@@ -459,11 +516,23 @@ void SceneApp::UpdateSimulation(float frame_time)
 				}
 			}*/
 
-			if (gameObjectA && gameObjectB)
+			if (gameObjectA != NULL && gameObjectB != NULL)
 			{
 				if (gameObjectA->type() == LOSETRIGGER || gameObjectB->type() == LOSETRIGGER)
 				{
 					lives--;
+				}
+				else if (gameObjectA->type() == BALL && gameObjectB->type() == BOARD)
+				{
+					gef::Matrix44 ball_transform = gameObjectA->transform();
+					gef::Vector4 ball_pos = ball_transform.GetTranslation();
+					gef::DebugOut("Collision Location: %f, %f", ball_pos.x(), ball_pos.y());
+				}
+				else if (gameObjectA->type() == BOARD && gameObjectB->type() == BALL)
+				{
+					gef::Matrix44 ball_transform = gameObjectB->transform();
+					gef::Vector4 ball_pos = ball_transform.GetTranslation();
+					gef::DebugOut("Collision Location: %f, %f", ball_pos.x(), ball_pos.y());
 				}
 			}
 		}
@@ -652,8 +721,8 @@ void SceneApp::GameRelease()
 	delete world_;
 	world_ = NULL;
 
-	delete board_mesh_;
-	board_mesh_ = NULL;
+	delete scene_assets_;
+	scene_assets_ = NULL;
 
 	delete primitive_builder_;
 	primitive_builder_ = NULL;
@@ -666,7 +735,6 @@ void SceneApp::GameRelease()
 void SceneApp::GameUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
-	gef::DebugOut("Buttons pressed: %i\n", controller->buttons_down());
 
 	switch (controller->buttons_released())
 	{
@@ -679,7 +747,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 		}
 		break;
-	case (gef_SONY_CTRL_CROSS):
+	case (gef_SONY_CTRL_CIRCLE):
 		for (int i = 0; i < flipper_vec_.size(); i++)
 		{
 			if (!flipper_vec_[i]->get_left())
@@ -688,7 +756,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 		}
 		break;
-	case (49152):
+	case (40960):
 		for (int i = 0; i < flipper_vec_.size(); i++)
 		{
 			if (flipper_vec_[i]->get_left())
@@ -716,10 +784,15 @@ void SceneApp::GameUpdate(float frame_time)
 		}
 		return;
 		break;
-	case (gef_SONY_CTRL_CIRCLE):
+	case (gef_SONY_CTRL_TRIANGLE):
 		GameRelease();
 		gameState = GAMEOVER;
 		IntervalInit();
+		return;
+		break;
+	case (gef_SONY_CTRL_CROSS):
+		GameRelease();
+		GameInit();
 		return;
 		break;
 	case (gef_SONY_CTRL_SQUARE):
@@ -731,7 +804,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 		}
 		break;
-	case (gef_SONY_CTRL_CROSS):
+	case (gef_SONY_CTRL_CIRCLE):
 		for (int i = 0; i < flipper_vec_.size(); i++)
 		{
 			if (!flipper_vec_[i]->get_left())
@@ -740,7 +813,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 		}
 		break;
-	case (49152):
+	case (40960):
 		for (int i = 0; i < flipper_vec_.size(); i++)
 		{
 			if (flipper_vec_[i]->get_left())
