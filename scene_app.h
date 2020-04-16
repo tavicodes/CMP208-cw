@@ -34,6 +34,8 @@ private:
 	void InitBall();
 	void InitBoard();
 	void InitBarriers();
+	void InitBumpers();
+	void InitFlipperBumpers();
 	void InitFlippers();
 	void InitLoseTrigger();
 
@@ -90,6 +92,11 @@ private:
 	gef::Mesh* barrier_mesh_;
 	std::vector<Barrier*> barrier_vec_;
 	std::vector<b2Body*> barrier_body_vec_;
+
+	// bumper variables
+	gef::Mesh* bumper_mesh_;
+	std::vector<GameObject*> bumper_vec_;
+	std::vector<b2Body*> bumper_body_vec_;
 
 	// flipper variables
 	gef::Mesh* flipper_mesh_;

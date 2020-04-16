@@ -132,7 +132,7 @@ void SceneApp::InitBall()
 	// create a physics body for the ball
 	b2BodyDef ball_body_def;
 	ball_body_def.type = b2_dynamicBody;
-	ball_body_def.position = b2Vec2(-2.0f, 4.0f);
+	ball_body_def.position = b2Vec2(4.5f, 4.0f);
 
 	ball_body_vec_.push_back(world_->CreateBody(&ball_body_def));
 
@@ -146,6 +146,7 @@ void SceneApp::InitBall()
 	ball_fixture_def.density = 0.7f;
 	ball_fixture_def.restitution = 0.5f;
 	ball_fixture_def.friction = 0.2f;
+	ball_fixture_def.filter.categoryBits = 0x0001;
 
 	// create the fixture on the rigid body
 	ball_body_vec_[0]->CreateFixture(&ball_fixture_def);
@@ -219,10 +220,10 @@ void SceneApp::InitBoard()
 
 void SceneApp::InitBarriers()
 {
-	int barrierCount = 4;
+	int barrierCount = 5;
 
 	// barrier dimensions
-	gef::Vector4 barrier_half_dimensions(0.4f, 0.5f, 1.0f);
+	gef::Vector4 barrier_half_dimensions(0.4f, 0.3f, 1.0f);
 	// setup the mesh for the barrier
 	barrier_mesh_ = primitive_builder_->CreateBoxMesh(barrier_half_dimensions);
 
@@ -238,10 +239,9 @@ void SceneApp::InitBarriers()
 
 	for (int i = 0; i < barrierCount; i++)
 	{
-		barrier_body_def.position = b2Vec2(-2.0f + i*0.5f, 4.0f);
+		barrier_body_def.position = b2Vec2((-3.0f + i*1.5f), (1.5f + (i % 2) * 1.7f));
 		barrier_body_vec_.push_back(world_->CreateBody(&barrier_body_def));
 	}
-
 
 	// create the shape for the barrier
 	b2PolygonShape shape;
@@ -252,7 +252,7 @@ void SceneApp::InitBarriers()
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
 
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < barrierCount; i++)
 	{
 		// create the fixture on the rigid body
 		barrier_body_vec_[i]->CreateFixture(&fixture_def);
@@ -265,10 +265,113 @@ void SceneApp::InitBarriers()
 	}
 }
 
+void SceneApp::InitBumpers()
+{
+	// bumper dimensions
+	float bumper_radius = 1.5f;
+	std::vector<gef::Vector4*> bumper_centre_vec;
+	bumper_centre_vec.push_back(new gef::Vector4(0.f, 13.5f, 0.0f));
+	bumper_centre_vec.push_back(new gef::Vector4(-4.5f, 10.f, 0.0f));
+	bumper_centre_vec.push_back(new gef::Vector4(4.5f, 10.f, 0.0f));
+
+	for (int i = 0; i < bumper_centre_vec.size(); i++)
+	{
+		// setup the mesh for the bumper
+		bumper_mesh_ = primitive_builder_->CreateSphereMesh(bumper_radius, 40, 20);
+		bumper_vec_.push_back(new GameObject);
+		bumper_vec_[i]->set_mesh(bumper_mesh_);
+		bumper_vec_[i]->set_type(BUMPER);
+	}
+
+	// create a physics body for the bumper
+	b2BodyDef bumper_body_def;
+	bumper_body_def.type = b2_staticBody;
+
+	for (int i = 0; i < bumper_centre_vec.size(); i++)
+	{
+		bumper_body_def.position = b2Vec2(bumper_centre_vec[i]->x(), bumper_centre_vec[i]->y());
+		bumper_body_vec_.push_back(world_->CreateBody(&bumper_body_def));
+	}
+
+	// create the shape for the bumper
+	b2CircleShape shape;
+	shape.m_radius = bumper_radius;
+
+	// create the fixture
+	b2FixtureDef fixture_def;
+	fixture_def.shape = &shape;
+	fixture_def.density = 1.0f;
+	fixture_def.restitution = 1.2f;
+
+	for (int i = 0; i < bumper_centre_vec.size(); i++)
+	{
+		// create the fixture on the rigid body
+		bumper_body_vec_[i]->CreateFixture(&fixture_def);
+
+		// update visuals from simulation data
+		bumper_vec_[i]->UpdateFromSimulation(bumper_body_vec_[i]);
+
+		// create a connection between the rigid body and GameObject
+		bumper_body_vec_[i]->SetUserData(&bumper_vec_[i]);
+	}
+}
+
+void SceneApp::InitFlipperBumpers()
+{
+	// bumper dimensions
+	float bumper_radius = 2.5f;
+	std::vector<gef::Vector4*> bumper_centre_vec;
+	bumper_centre_vec.push_back(new gef::Vector4(-8.f, -19.3f, 0.0f));
+	bumper_centre_vec.push_back(new gef::Vector4(8.f, -19.3f, 0.0f));
+
+	for (int i = 0; i < bumper_centre_vec.size(); i++)
+	{
+		// setup the mesh for the bumper
+		bumper_mesh_ = primitive_builder_->CreateSphereMesh(bumper_radius, 40, 20);
+		bumper_vec_.push_back(new GameObject);
+		bumper_vec_[bumper_vec_.size() - 1]->set_mesh(bumper_mesh_);
+		bumper_vec_[bumper_vec_.size() - 1]->set_type(BUMPER);
+	}
+
+	// create a physics body for the bumper
+	b2BodyDef bumper_body_def;
+	bumper_body_def.type = b2_staticBody;
+
+	for (int i = 0; i < bumper_centre_vec.size(); i++)
+	{
+		bumper_body_def.position = b2Vec2(bumper_centre_vec[i]->x(), bumper_centre_vec[i]->y());
+		bumper_body_vec_.push_back(world_->CreateBody(&bumper_body_def));
+	}
+
+	// create the shape for the bumper
+	b2CircleShape shape;
+	shape.m_radius = bumper_radius;
+
+	// create the fixture
+	b2FixtureDef fixture_def;
+	fixture_def.shape = &shape;
+	fixture_def.density = 1.0f;
+	fixture_def.restitution = 0.4f;
+	fixture_def.filter.categoryBits = 0x0002;
+	fixture_def.filter.maskBits = 0x0001;
+
+	for (int i = bumper_vec_.size() - bumper_centre_vec.size(); i < bumper_vec_.size(); i++)
+	{
+		// create the fixture on the rigid body
+		bumper_body_vec_[i]->CreateFixture(&fixture_def);
+
+		// update visuals from simulation data
+		bumper_vec_[i]->UpdateFromSimulation(bumper_body_vec_[i]);
+
+		// create a connection between the rigid body and GameObject
+		bumper_body_vec_[i]->SetUserData(&bumper_vec_[i]);
+	}
+}
+
 void SceneApp::InitFlippers()
 {
 	// flipper dimensions
-	gef::Vector4 flipper_half_dimensions(3.0f, 0.5f, 0.5f);
+	gef::Vector4 flipper_half_dimensions(2.3f, 0.3f, 0.5f);
 	// setup the mesh for the flipper
 	flipper_mesh_ = primitive_builder_->CreateBoxMesh(flipper_half_dimensions);
 
@@ -296,10 +399,10 @@ void SceneApp::InitFlippers()
 
 	// flipper one
 
-	flipper_def.position = b2Vec2(-3.f, -7.0f);
+	flipper_def.position = b2Vec2(-2.5f, -20.0f);
 	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
 
-	flipper_pin_def.position = flipper_def.position - b2Vec2(2.5f, 0);
+	flipper_pin_def.position = flipper_def.position - b2Vec2(1.9f, 0);
 	flipper_pin_body_vec_.push_back(world_->CreateBody(&flipper_pin_def));
 
 	flipper_joint_def.bodyA = flipper_pin_body_vec_[0];
@@ -312,10 +415,10 @@ void SceneApp::InitFlippers()
 
 	// flipper two
 
-	flipper_def.position = b2Vec2(3.f, -7.0f);
+	flipper_def.position = b2Vec2(2.5f, -20.0f);
 	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
 
-	flipper_pin_def.position = flipper_def.position + b2Vec2(2.5f, 0);
+	flipper_pin_def.position = flipper_def.position + b2Vec2(1.9f, 0);
 	flipper_pin_body_vec_.push_back(world_->CreateBody(&flipper_pin_def));
 
 	flipper_joint_def.bodyA= flipper_pin_body_vec_[1];
@@ -335,6 +438,8 @@ void SceneApp::InitFlippers()
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
 	fixture_def.restitution = 0.f;
+	fixture_def.filter.categoryBits = 0x0002;
+	fixture_def.filter.maskBits = 0x0001;
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -353,8 +458,8 @@ void SceneApp::InitFlippers()
 void SceneApp::InitLoseTrigger()
 {
 	lose_trigger_.set_type(LOSETRIGGER);
-	// kill trigger dimensions
-	gef::Vector4 lt_half_dimensions(10.0f, 0.2f, 0.5f);
+	// lose trigger dimensions
+	gef::Vector4 lt_half_dimensions(6.5f, 0.2f, 0.5f);
 
 	// setup the mesh for the board
 	lose_trigger_mesh_ = primitive_builder_->CreateBoxMesh(lt_half_dimensions);
@@ -363,7 +468,7 @@ void SceneApp::InitLoseTrigger()
 	// create a physics body
 	b2BodyDef body_def;
 	body_def.type = b2_staticBody;
-	body_def.position = b2Vec2(0.0f, -15.0f);
+	body_def.position = b2Vec2(0.0f, -25.5f);
 
 	lose_trigger_body_ = world_->CreateBody(&body_def);
 
@@ -492,7 +597,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 			b2Body* bodyB = contact->GetFixtureB()->GetBody();
 
 			// DO COLLISION RESPONSE HERE
-			Ball* ball = NULL;
+			Barrier* barrier = NULL;
 
 			GameObject* gameObjectA = NULL;
 			GameObject* gameObjectB = NULL;
@@ -500,39 +605,32 @@ void SceneApp::UpdateSimulation(float frame_time)
 			gameObjectA = (GameObject*)bodyA->GetUserData();
 			gameObjectB = (GameObject*)bodyB->GetUserData();
 
-			/*if (gameObjectA)
+			if (gameObjectA != NULL && gameObjectB != NULL)
 			{
 				if (gameObjectA->type() == BALL)
 				{
-					ball = (Ball*)bodyA->GetUserData();
+					if (gameObjectB->type() == BARRIER)
+					{
+						barrier = (Barrier*)bodyB->GetUserData();
+						barrier->set_hit(true);
+					}
+					if (gameObjectB->type() == LOSETRIGGER)
+					{
+						lives--;
+					}
 				}
-			}
 
-			if (gameObjectB)
-			{
-				if (gameObjectB->type() == BALL)
+				else if (gameObjectB->type() == BALL)
 				{
-					ball = (Ball*)bodyB->GetUserData();
-				}
-			}*/
-
-			if (gameObjectA != NULL && gameObjectB != NULL)
-			{
-				if (gameObjectA->type() == LOSETRIGGER || gameObjectB->type() == LOSETRIGGER)
-				{
-					lives--;
-				}
-				else if (gameObjectA->type() == BALL && gameObjectB->type() == BOARD)
-				{
-					gef::Matrix44 ball_transform = gameObjectA->transform();
-					gef::Vector4 ball_pos = ball_transform.GetTranslation();
-					gef::DebugOut("Collision Location: %f, %f", ball_pos.x(), ball_pos.y());
-				}
-				else if (gameObjectA->type() == BOARD && gameObjectB->type() == BALL)
-				{
-					gef::Matrix44 ball_transform = gameObjectB->transform();
-					gef::Vector4 ball_pos = ball_transform.GetTranslation();
-					gef::DebugOut("Collision Location: %f, %f", ball_pos.x(), ball_pos.y());
+					if (gameObjectA->type() == BARRIER)
+					{
+						barrier = (Barrier*)bodyA->GetUserData();
+						barrier->set_hit(true);
+					}
+					if (gameObjectA->type() == LOSETRIGGER)
+					{
+						lives--;
+					}
 				}
 			}
 		}
@@ -681,6 +779,8 @@ void SceneApp::GameInit()
 	InitBall();
 	InitBoard();
 	InitBarriers();
+	InitBumpers();
+	InitFlipperBumpers();
 	InitFlippers();
 	InitLoseTrigger();
 }
@@ -695,7 +795,15 @@ void SceneApp::GameRelease()
 	ball_vec_.clear();
 	ball_body_vec_.clear();
 
-	// destroy the ball objects and clear the vector
+	// destroy the bumper objects and clear the vector
+	for (auto bumper_obj : bumper_vec_)
+	{
+		delete bumper_obj;
+	}
+	bumper_vec_.clear();
+	bumper_body_vec_.clear();
+
+	// destroy the barrier objects and clear the vector
 	for (auto barrier_obj : barrier_vec_)
 	{
 		delete barrier_obj;
@@ -867,9 +975,17 @@ void SceneApp::GameRender()
 		renderer_3d_->DrawMesh(*flipper_vec_[flipperCount]);
 	}
 
+	for (int bumperCount = 0; bumperCount < bumper_vec_.size(); bumperCount++)
+	{
+		renderer_3d_->DrawMesh(*bumper_vec_[bumperCount]);
+	}
+
 	for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
 	{
-		renderer_3d_->DrawMesh(*barrier_vec_[barrierCount]);
+		if (!barrier_vec_[barrierCount]->get_hit())
+		{
+			renderer_3d_->DrawMesh(*barrier_vec_[barrierCount]);
+		}
 	}
 
 	// draw ball
