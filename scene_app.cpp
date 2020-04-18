@@ -155,7 +155,7 @@ void SceneApp::InitBall()
 	ball_vec_[0]->UpdateFromSimulation(ball_body_vec_[0]);
 
 	// create a connection between the rigid body and GameObject
-	ball_body_vec_[0]->SetUserData(&ball_vec_[0]);
+	ball_body_vec_[0]->SetUserData(ball_vec_[0]);
 }
 
 void SceneApp::InitBoard()
@@ -265,7 +265,7 @@ void SceneApp::InitBarriers()
 		barrier_vec_[i]->UpdateFromSimulation(barrier_body_vec_[i]);
 
 		// create a connection between the rigid body and GameObject
-		barrier_body_vec_[i]->SetUserData(&barrier_vec_[i]);
+		barrier_body_vec_[i]->SetUserData(barrier_vec_[i]);
 	}
 }
 
@@ -318,7 +318,7 @@ void SceneApp::InitBumpers()
 		bumper_vec_[i]->UpdateFromSimulation(bumper_body_vec_[i]);
 
 		// create a connection between the rigid body and GameObject
-		bumper_body_vec_[i]->SetUserData(&bumper_vec_[i]);
+		bumper_body_vec_[i]->SetUserData(bumper_vec_[i]);
 	}
 }
 
@@ -370,14 +370,14 @@ void SceneApp::InitFlipperBumpers()
 		bumper_vec_[i]->UpdateFromSimulation(bumper_body_vec_[i]);
 
 		// create a connection between the rigid body and GameObject
-		bumper_body_vec_[i]->SetUserData(&bumper_vec_[i]);
+		bumper_body_vec_[i]->SetUserData(bumper_vec_[i]);
 	}
 }
 
 void SceneApp::InitFlippers()
 {
 	// flipper dimensions
-	gef::Vector4 flipper_half_dimensions(2.3f, 0.3f, 0.5f);
+	gef::Vector4 flipper_half_dimensions(2.15f, 0.3f, 0.5f);
 	// setup the mesh for the flipper
 	flipper_mesh_ = primitive_builder_->CreateBoxMesh(flipper_half_dimensions);
 
@@ -405,10 +405,10 @@ void SceneApp::InitFlippers()
 
 	// flipper one
 
-	flipper_def.position = b2Vec2(-2.5f, -20.0f);
+	flipper_def.position = b2Vec2(-2.65f, -20.0f);
 	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
 
-	flipper_pin_def.position = flipper_def.position - b2Vec2(1.9f, 0);
+	flipper_pin_def.position = flipper_def.position - b2Vec2(1.8f, 0);
 	flipper_pin_body_vec_.push_back(world_->CreateBody(&flipper_pin_def));
 
 	flipper_joint_def.bodyA = flipper_pin_body_vec_[0];
@@ -421,10 +421,10 @@ void SceneApp::InitFlippers()
 
 	// flipper two
 
-	flipper_def.position = b2Vec2(2.5f, -20.0f);
+	flipper_def.position = b2Vec2(2.65f, -20.0f);
 	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
 
-	flipper_pin_def.position = flipper_def.position + b2Vec2(1.9f, 0);
+	flipper_pin_def.position = flipper_def.position + b2Vec2(1.8f, 0);
 	flipper_pin_body_vec_.push_back(world_->CreateBody(&flipper_pin_def));
 
 	flipper_joint_def.bodyA= flipper_pin_body_vec_[1];
@@ -456,7 +456,7 @@ void SceneApp::InitFlippers()
 		flipper_vec_[i]->UpdateFromSimulation(flipper_body_vec_[i]);
 
 		// create a connection between the rigid body and GameObject
-		flipper_body_vec_[i]->SetUserData(&flipper_vec_[i]);
+		flipper_body_vec_[i]->SetUserData(flipper_vec_[i]);
 	}
 
 }
@@ -496,6 +496,18 @@ void SceneApp::InitLoseTrigger()
 
 	// create a connection between the rigid body and GameObject
 	lose_trigger_body_->SetUserData(&lose_trigger_);
+}
+
+bool SceneApp::CheckBarriers()
+{
+	for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
+	{
+		if (!barrier_vec_[barrierCount]->get_hit())
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 gef::Scene* SceneApp::LoadSceneAssets(gef::Platform& platform, const char* filename)
@@ -588,6 +600,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 		flipper_vec_[flipperCount]->UpdateFromSimulation(flipper_body_vec_[flipperCount]);
 	}
 
+
 	// don't have to update the board visuals as it is static
 
 	// collision detection
@@ -614,9 +627,25 @@ void SceneApp::UpdateSimulation(float frame_time)
 			case BARRIER:
 				barrier = (Barrier*)bodyA->GetUserData();
 				barrier->set_hit(true);
+				filterA.categoryBits = HITBARRIER;
+				filterA.maskBits = NULL;
+				bodyA->GetFixtureList()->SetFilterData(filterA);
 				break;
 			case LOSETRIGGER:
 				lives--;
+				break;
+			case BUMPER:
+				if (CheckBarriers())
+				{
+					for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
+					{
+						barrier_vec_[barrierCount]->set_hit(false);
+						b2Filter filter = barrier_body_vec_[barrierCount]->GetFixtureList()->GetFilterData();
+						filter.categoryBits = BARRIER;
+						filter.maskBits = BALL;
+						barrier_body_vec_[barrierCount]->GetFixtureList()->SetFilterData(filter);
+					}
+				}
 				break;
 			default:
 				break;
@@ -627,9 +656,25 @@ void SceneApp::UpdateSimulation(float frame_time)
 			case BARRIER:
 				barrier = (Barrier*)bodyB->GetUserData();
 				barrier->set_hit(true);
+				filterB.categoryBits = HITBARRIER;
+				filterB.maskBits = NULL;
+				bodyB->GetFixtureList()->SetFilterData(filterB);
 				break;
 			case LOSETRIGGER:
 				lives--;
+				break;
+			case BUMPER:
+				if (CheckBarriers())
+				{
+					for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
+					{
+						barrier_vec_[barrierCount]->set_hit(false);
+						b2Filter filter = barrier_body_vec_[barrierCount]->GetFixtureList()->GetFilterData();
+						filter.categoryBits = BARRIER;
+						filter.maskBits = BALL;
+						barrier_body_vec_[barrierCount]->GetFixtureList()->SetFilterData(filter);
+					}
+				}
 				break;
 			default:
 				break;

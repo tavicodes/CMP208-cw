@@ -9,9 +9,10 @@ enum OBJECT_TYPE
 	BALL = 0x0001,
 	FLIPPER = 0x0002,
 	BARRIER = 0x0004,
+	HITBARRIER = 0x0040,
 	BUMPER = 0x0008,
 	LOSETRIGGER = 0x0020,
-	BOARD = 0x0010
+	BOARD = 0x0010,
 };
 
 class GameObject : public gef::MeshInstance

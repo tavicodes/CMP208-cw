@@ -39,6 +39,8 @@ private:
 	void InitFlippers();
 	void InitLoseTrigger();
 
+	bool CheckBarriers();
+
 	gef::Scene* LoadSceneAssets(gef::Platform& platform, const char* filename);
 	gef::Mesh* GetMeshFromSceneAssets(gef::Scene* scene);
 
@@ -92,6 +94,7 @@ private:
 	gef::Mesh* barrier_mesh_;
 	std::vector<Barrier*> barrier_vec_;
 	std::vector<b2Body*> barrier_body_vec_;
+	b2Fixture* barrier_fixture;
 
 	// bumper variables
 	gef::Mesh* bumper_mesh_;
