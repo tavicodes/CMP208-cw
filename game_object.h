@@ -6,12 +6,12 @@
 
 enum OBJECT_TYPE
 {
-	BALL,
-	FLIPPER,
-	BARRIER,
-	BUMPER,
-	LOSETRIGGER,
-	BOARD
+	BALL = 0x0001,
+	FLIPPER = 0x0002,
+	BARRIER = 0x0004,
+	BUMPER = 0x0008,
+	LOSETRIGGER = 0x0020,
+	BOARD = 0x0010
 };
 
 class GameObject : public gef::MeshInstance

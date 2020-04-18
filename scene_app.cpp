@@ -146,7 +146,7 @@ void SceneApp::InitBall()
 	ball_fixture_def.density = 0.7f;
 	ball_fixture_def.restitution = 0.5f;
 	ball_fixture_def.friction = 0.2f;
-	ball_fixture_def.filter.categoryBits = 0x0001;
+	ball_fixture_def.filter.categoryBits = BALL;
 
 	// create the fixture on the rigid body
 	ball_body_vec_[0]->CreateFixture(&ball_fixture_def);
@@ -208,6 +208,8 @@ void SceneApp::InitBoard()
 	// create the fixture
 	b2FixtureDef fixture_def;
 	fixture_def.shape = &shape;
+	fixture_def.filter.categoryBits = BOARD;
+	fixture_def.filter.maskBits = BALL;
 	
 	// create the fixture on the rigid body
 	board_body_->CreateFixture(&fixture_def);
@@ -251,6 +253,8 @@ void SceneApp::InitBarriers()
 	b2FixtureDef fixture_def;
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
+	fixture_def.filter.categoryBits = BARRIER;
+	fixture_def.filter.maskBits = BALL;
 
 	for (int i = 0; i < barrierCount; i++)
 	{
@@ -302,6 +306,8 @@ void SceneApp::InitBumpers()
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
 	fixture_def.restitution = 1.2f;
+	fixture_def.filter.categoryBits = BUMPER;
+	fixture_def.filter.maskBits = BALL;
 
 	for (int i = 0; i < bumper_centre_vec.size(); i++)
 	{
@@ -352,8 +358,8 @@ void SceneApp::InitFlipperBumpers()
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
 	fixture_def.restitution = 0.4f;
-	fixture_def.filter.categoryBits = 0x0002;
-	fixture_def.filter.maskBits = 0x0001;
+	fixture_def.filter.categoryBits = BUMPER;
+	fixture_def.filter.maskBits = BALL;
 
 	for (int i = bumper_vec_.size() - bumper_centre_vec.size(); i < bumper_vec_.size(); i++)
 	{
@@ -438,8 +444,8 @@ void SceneApp::InitFlippers()
 	fixture_def.shape = &shape;
 	fixture_def.density = 1.0f;
 	fixture_def.restitution = 0.f;
-	fixture_def.filter.categoryBits = 0x0002;
-	fixture_def.filter.maskBits = 0x0001;
+	fixture_def.filter.categoryBits = FLIPPER;
+	fixture_def.filter.maskBits = BALL;
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -479,6 +485,8 @@ void SceneApp::InitLoseTrigger()
 	// create the fixture
 	b2FixtureDef fixture_def;
 	fixture_def.shape = &shape;
+	fixture_def.filter.categoryBits = LOSETRIGGER;
+	fixture_def.filter.maskBits = BALL;
 
 	// create the fixture on the rigid body
 	lose_trigger_body_->CreateFixture(&fixture_def);
@@ -595,43 +603,36 @@ void SceneApp::UpdateSimulation(float frame_time)
 			// get the colliding bodies
 			b2Body* bodyA = contact->GetFixtureA()->GetBody();
 			b2Body* bodyB = contact->GetFixtureB()->GetBody();
+			b2Filter filterA = contact->GetFixtureA()->GetFilterData();
+			b2Filter filterB = contact->GetFixtureB()->GetFilterData();
 
 			// DO COLLISION RESPONSE HERE
 			Barrier* barrier = NULL;
 
-			GameObject* gameObjectA = NULL;
-			GameObject* gameObjectB = NULL;
-
-			gameObjectA = (GameObject*)bodyA->GetUserData();
-			gameObjectB = (GameObject*)bodyB->GetUserData();
-
-			if (gameObjectA != NULL && gameObjectB != NULL)
+			switch (filterA.categoryBits)
 			{
-				if (gameObjectA->type() == BALL)
-				{
-					if (gameObjectB->type() == BARRIER)
-					{
-						barrier = (Barrier*)bodyB->GetUserData();
-						barrier->set_hit(true);
-					}
-					if (gameObjectB->type() == LOSETRIGGER)
-					{
-						lives--;
-					}
-				}
+			case BARRIER:
+				barrier = (Barrier*)bodyA->GetUserData();
+				barrier->set_hit(true);
+				break;
+			case LOSETRIGGER:
+				lives--;
+				break;
+			default:
+				break;
+			}
 
-				else if (gameObjectB->type() == BALL)
-				{
-					if (gameObjectA->type() == BARRIER)
-					{
-						barrier = (Barrier*)bodyA->GetUserData();
-						barrier->set_hit(true);
-					}
-					if (gameObjectA->type() == LOSETRIGGER)
-					{
-						lives--;
-					}
-				}
+			switch (filterB.categoryBits)
+			{
+			case BARRIER:
+				barrier = (Barrier*)bodyB->GetUserData();
+				barrier->set_hit(true);
+				break;
+			case LOSETRIGGER:
+				lives--;
+				break;
+			default:
+				break;
 			}
 		}
 
