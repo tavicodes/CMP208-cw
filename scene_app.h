@@ -10,6 +10,8 @@
 #include <box2d/box2d.h>
 #include "game_object.h"
 #include <vector>
+#include <fstream>
+#include <sstream>
 
 
 // FRAMEWORK FORWARD DECLARATIONS
@@ -41,6 +43,14 @@ private:
 
 	bool CheckBarriers();
 
+	void LoadScores();
+	void SaveScores();
+	void ResetScores();
+	bool CheckHighScore();
+
+	void RenderScores();
+	void RenderLeaderboard();
+
 	gef::Scene* LoadSceneAssets(gef::Platform& platform, const char* filename);
 	gef::Mesh* GetMeshFromSceneAssets(gef::Scene* scene);
 
@@ -49,13 +59,15 @@ private:
 	void DrawHUD();
 
 	void SetupLights();
+
+	bool contacted;
 	void UpdateSimulation(float frame_time);
     
 	gef::SpriteRenderer* sprite_renderer_;
 	gef::Font* font_;
 	gef::InputManager* input_manager_;
 
-	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, INGAME, PAUSE, GAMEOVER, EXIT };
+	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, INGAME, PAUSE, GAMEOVER, NEWSCORE, LEADERBOARD, EXIT };
 	GAMESTATE gameState;
 
 	//
@@ -70,6 +82,10 @@ private:
 	// INTERVAL DECLARATIONS
 	//
 	float timer;
+	std::vector<std::pair<std::string, unsigned int>>::iterator scorePos;
+	std::vector<char> alph;
+	int charSelected, char0, char1, char2;
+	float leaderboardSway;
 
 	//
 	// GAME DECLARATIONS
@@ -77,11 +93,14 @@ private:
 	gef::Renderer3D* renderer_3d_;
 	PrimitiveBuilder* primitive_builder_;
 
+	int lives;
+	int points;
+	std::vector<std::pair<std::string, unsigned int>> scores;
+
 	// create the physics world
 	b2World* world_;
 
 	// ball variables
-	int lives;
 	std::vector<Ball*> ball_vec_;
 	std::vector<b2Body*> ball_body_vec_;
 

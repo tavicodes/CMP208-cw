@@ -35,6 +35,17 @@ void SceneApp::Init()
 	// initialise input manager
 	input_manager_ = gef::InputManager::Create(platform_);
 
+	LoadScores();
+
+	for (int i = 0; i < 26; i++)
+	{
+		alph.push_back(i + 'A');
+	}
+	for (int i = 0; i < 10; i++)
+	{
+		alph.push_back(i + '0');
+	}
+
 	gameState = INIT;
 	IntervalInit();
 }
@@ -72,14 +83,12 @@ bool SceneApp::Update(float frame_time)
 		CreditsUpdate(frame_time);
 		break;
 	case INGAME:
-		GameUpdate(frame_time);
-		break;
 	case PAUSE:
 		GameUpdate(frame_time);
 		break;
 	case GAMEOVER:
-		IntervalUpdate(frame_time);
-		break;
+	case NEWSCORE:
+	case LEADERBOARD:
 	case EXIT:
 		return IntervalUpdate(frame_time);
 		break;
@@ -107,14 +116,12 @@ void SceneApp::Render()
 		CreditsRender();
 		break;
 	case SceneApp::INGAME:
-		GameRender();
-		break;
 	case SceneApp::PAUSE:
 		GameRender();
 		break;
 	case SceneApp::GAMEOVER:
-		IntervalRender();
-		break;
+	case SceneApp::NEWSCORE:
+	case SceneApp::LEADERBOARD:
 	case SceneApp::EXIT:
 		IntervalRender();
 		break;
@@ -510,6 +517,276 @@ bool SceneApp::CheckBarriers()
 	return true;
 }
 
+void SceneApp::LoadScores()
+{
+	std::ifstream scoresFile("scores.txt");
+
+	if (!scoresFile.good())
+	{
+		scoresFile.close();
+		std::ofstream newScoresFile("scores.txt");
+		newScoresFile << "AAA,0";
+		newScoresFile.close();
+		ResetScores();
+	}
+	else
+	{
+		std::string line, val;
+		bool pair = true;
+
+		// read data, line by line
+		while (scoresFile.good())
+		{
+			std::getline(scoresFile, line);
+			// Create a stringstream of the current line
+			std::stringstream ss(line);
+
+			std::pair<std::string, unsigned int> temp;
+
+			// read every column data of a row and 
+			// store it in a string variable
+			// then fill the pair variable
+			while (std::getline(ss, val, ','))
+			{
+				if (pair)
+				{
+					temp.first = val;
+				}
+				else
+				{
+					temp.second = std::stoi(val);
+				}
+
+				pair = !pair;
+			}
+
+			scores.push_back(temp);
+		}
+
+		scoresFile.close();
+	}
+}
+
+void SceneApp::SaveScores()
+{
+	std::ofstream scoresFile("scores.txt", std::ofstream::trunc);
+	scoresFile << scores[0].first << "," << std::to_string(scores[0].second);
+
+	int endOfFile = scores.size();
+	if (endOfFile > 10) endOfFile = 10;
+
+	for (int i = 1; i < endOfFile; i++)
+	{
+		scoresFile << std::endl << scores[i].first << "," << std::to_string(scores[i].second);
+	}
+
+	scoresFile.close();
+}
+
+void SceneApp::ResetScores()
+{
+	scores.clear();
+	std::pair<std::string, unsigned int> tempPair;
+	std::string name = "AAA";
+	tempPair.first = name;
+	for (int i = 10; i > 0; i--)
+	{
+		tempPair.second = i * 100;
+		scores.push_back(tempPair);
+	}
+	SaveScores();
+}
+
+bool SceneApp::CheckHighScore()
+{
+	for (scorePos = scores.begin(); scorePos != scores.end(); ++scorePos)
+	{
+		if (points > scorePos->second)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void SceneApp::RenderScores()
+{
+	int scale0, scale1, scale2,
+		height0, height1, height2;
+	UInt32 col0, col1, col2;
+	int	temp00, temp10, temp20,
+		temp01, temp11, temp21;
+
+	scale0 = 3.5f;
+	scale1 = 3.5f;
+	scale2 = 3.5f;
+	height0 = 50.f;
+	height1 = 50.f;
+	height2 = 50.f;
+	col0 = 0xffffffff;
+	col1 = 0xffffffff;
+	col2 = 0xffffffff;
+
+	switch (charSelected)
+	{
+	case 0:
+		scale0 = 5.f;
+		col0 = 0xdaa520ff;
+		height0 = 80.f;
+		break;
+	case 1:
+		scale1 = 5.f;
+		col1 = 0xdaa520ff;
+		height1 = 80.f;
+		break;
+	case 2:
+		scale2 = 5.f;
+		col2 = 0xdaa520ff;
+		height2 = 80.f;
+		break;
+	default:
+		break;
+	}
+
+
+	if (char0 == 0)
+	{
+		temp00 = 35;
+		temp01 = char0 + 1;
+	}
+	else if (char0 == 35)
+	{
+		temp00 = char0 - 1;
+		temp01 = 0;
+	}
+	else
+	{
+		temp00 = char0-1;
+		temp01 = char0+1;
+	}
+
+	if (char1 == 0)
+	{
+		temp10 = 35;
+		temp11 = char1+1;
+	}
+	else if (char1 == 35)
+	{
+		temp10 = char1-1;
+		temp11 = 0;
+	}
+	else
+	{
+		temp10 = char1-1;
+		temp11 = char1+1;
+	}
+
+	if (char2 == 0)
+	{
+		temp20 = 35;
+		temp21 = char2+1;
+	}
+	else if (char2 == 35)
+	{
+		temp20 = char2-1;
+		temp21 = 0;
+	}
+	else
+	{
+		temp20 = char2-1;
+		temp21 = char2+1;
+	}
+
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f - 80.f, platform_.height() * 0.5f - 120.0f, -0.99f),
+		1.5f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"%c", alph[temp00]);
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f - 120.0f, -0.99f),
+		1.5f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"%c", alph[temp10]);
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f + 80.f, platform_.height() * 0.5f - 120.0f, -0.99f),
+		1.5f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"%c", alph[temp20]);
+
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f - 80.f, platform_.height() * 0.5f - height0, -0.99f),
+		scale0,
+		col0,
+		gef::TJ_CENTRE,
+		"%c", alph[char0]);
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f - height1, -0.99f),
+		scale1,
+		col1,
+		gef::TJ_CENTRE,
+		"%c", alph[char1]);
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f + 80.f, platform_.height() * 0.5f - height2, -0.99f),
+		scale2,
+		col2,
+		gef::TJ_CENTRE,
+		"%c", alph[char2]);
+
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f - 80.f, platform_.height() * 0.5f + 60.f, -0.99f),
+		1.5f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"%c", alph[temp01]);
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f + 60.f, -0.99f),
+		1.5f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"%c", alph[temp11]);
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f + 80.f, platform_.height() * 0.5f + 60.f, -0.99f),
+		1.5f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"%c", alph[temp21]);
+}
+
+void SceneApp::RenderLeaderboard()
+{
+	for (int i = 0; i < scores.size(); i++)
+	{
+		std::string tempStr = std::string(8 - std::to_string(scores[i].second).length(), '0') + std::to_string(scores[i].second);
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(40.f + ((double)sin(leaderboardSway + i * 1.2f) * 20.f), 80.f + (i * 60.f), -0.99f),
+			3.f,
+			0xffffffff,
+			gef::TJ_LEFT,
+			"%s", scores[i].first.c_str());
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4((platform_.width() - 40.f) + ((double)sin(leaderboardSway + i * 1.2f) * 20.f), 80.f + (i * 60.f), -0.99f),
+			3.f,
+			0xffffffff,
+			gef::TJ_RIGHT,
+			"%s", tempStr.c_str());
+	}
+}
+
 gef::Scene* SceneApp::LoadSceneAssets(gef::Platform& platform, const char* filename)
 {
 	gef::Scene* scene = new gef::Scene();
@@ -559,7 +836,7 @@ void SceneApp::DrawHUD()
 	if(font_)
 	{
 		// display frame rate
-		font_->RenderText(sprite_renderer_, gef::Vector4(700.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_RIGHT, "FPS: %.1f", fps_);		
+		font_->RenderText(sprite_renderer_, gef::Vector4(700.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_RIGHT, "FPS: %.1f", fps_);
 	}
 }
 
@@ -609,6 +886,11 @@ void SceneApp::UpdateSimulation(float frame_time)
 	// get contact count
 	int contact_count = world_->GetContactCount();
 
+	if (contact_count == 0)
+	{
+		contacted = false;
+	}
+
 	for (int contact_num = 0; contact_num<contact_count; ++contact_num)
 	{
 		if (contact->IsTouching())
@@ -630,11 +912,17 @@ void SceneApp::UpdateSimulation(float frame_time)
 				filterA.categoryBits = HITBARRIER;
 				filterA.maskBits = NULL;
 				bodyA->GetFixtureList()->SetFilterData(filterA);
+
+				if (!contacted)
+				{
+					points += 25;
+					contacted = true;
+				}
 				break;
 			case LOSETRIGGER:
 				lives--;
 				break;
-			case BUMPER:
+			case FLIPPER:
 				if (CheckBarriers())
 				{
 					for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
@@ -645,6 +933,20 @@ void SceneApp::UpdateSimulation(float frame_time)
 						filter.maskBits = BALL;
 						barrier_body_vec_[barrierCount]->GetFixtureList()->SetFilterData(filter);
 					}
+				}
+				
+				if (!contacted)
+				{
+					points += 10;
+					contacted = true;
+				}
+				break;
+			case BUMPER:
+				
+				if (!contacted)
+				{
+					points += 15;
+					contacted = true;
 				}
 				break;
 			default:
@@ -659,11 +961,17 @@ void SceneApp::UpdateSimulation(float frame_time)
 				filterB.categoryBits = HITBARRIER;
 				filterB.maskBits = NULL;
 				bodyB->GetFixtureList()->SetFilterData(filterB);
+				
+				if (!contacted)
+				{
+					points += 25;
+					contacted = true;
+				}
 				break;
 			case LOSETRIGGER:
 				lives--;
 				break;
-			case BUMPER:
+			case FLIPPER:
 				if (CheckBarriers())
 				{
 					for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
@@ -674,6 +982,20 @@ void SceneApp::UpdateSimulation(float frame_time)
 						filter.maskBits = BALL;
 						barrier_body_vec_[barrierCount]->GetFixtureList()->SetFilterData(filter);
 					}
+				}
+				
+				if (!contacted)
+				{
+					points += 10;
+					contacted = true;
+				}
+				break;
+			case BUMPER:
+				
+				if (!contacted)
+				{
+					points += 15;
+					contacted = true;
 				}
 				break;
 			default:
@@ -815,8 +1137,9 @@ void SceneApp::GameInit()
 	// initialise primitive builder to make create some 3D geometry easier
 	primitive_builder_ = new PrimitiveBuilder(platform_);
 
-
 	SetupLights();
+	contacted = false;
+	points = 0;
 
 	// initialise the physics world
 	b2Vec2 gravity(0.0f, -5.f);
@@ -833,6 +1156,7 @@ void SceneApp::GameInit()
 
 void SceneApp::GameRelease()
 {
+
 	// destroy the ball objects and clear the vector
 	for (auto ball_obj : ball_vec_)
 	{
@@ -1053,6 +1377,8 @@ void SceneApp::GameRender()
 			gef::Vector4(50.f, 10.f, -0.9f), 
 			1.0f, 0xffffffff, gef::TJ_LEFT, 
 			"Lives: %i", lives);
+		// display score
+		font_->RenderText(sprite_renderer_, gef::Vector4(400.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_CENTRE, "SCORE: %i", points);
 	}
 	else
 	{
@@ -1070,30 +1396,151 @@ void SceneApp::GameRender()
 void SceneApp::IntervalInit()
 {
 	timer = 0;
+	charSelected = 0;
+	char0 = 0;
+	char1 = 0;
+	char2 = 0;
+	leaderboardSway = 0;
 }
 
 void SceneApp::IntervalRelease()
 {
 	timer = NULL;
+	charSelected = NULL;
+	char0 = NULL;
+	char1 = NULL;
+	char2 = NULL;
+	leaderboardSway = NULL;
 }
 
 bool SceneApp::IntervalUpdate(float frame_time)
 {
 	timer += frame_time;
 
-	if (timer > 1)
+	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
+
+	switch (gameState)
 	{
-		if (gameState == EXIT)
-		{
-			IntervalRelease();
-			return false;
-		}
-		else
+	case INIT:
+		if (timer > 1)
 		{
 			IntervalRelease();
 			gameState = MENU;
 			FrontendInit();
 		}
+		break;
+	case SceneApp::GAMEOVER:
+		if (controller->buttons_pressed() == gef_SONY_CTRL_CROSS)
+		{
+			if (CheckHighScore())
+			{
+				gameState = NEWSCORE;
+			}
+			else
+			{
+				gameState = LEADERBOARD;
+			}
+		}
+		break;
+	case SceneApp::NEWSCORE:
+		switch (controller->buttons_pressed())
+		{
+		case (gef_SONY_CTRL_CROSS):
+			if (charSelected < 2)
+			{
+				charSelected++;
+			}
+			else
+			{
+				std::string tempStr;
+				tempStr.push_back(alph[char0]);
+				tempStr.push_back(alph[char1]);
+				tempStr.push_back(alph[char2]);
+
+				std::pair<std::string, unsigned int> temp;
+				temp.first = tempStr;
+				temp.second = points;
+				scores.insert(scorePos, temp);
+
+				SaveScores();
+				timer = 0;
+				gameState = LEADERBOARD;
+			}
+			break;
+		case (gef_SONY_CTRL_RIGHT):
+			if (charSelected < 2)
+			{
+				charSelected++;
+			}
+			break;
+		case (gef_SONY_CTRL_LEFT):
+		case (gef_SONY_CTRL_CIRCLE):
+			if (charSelected > 0)
+			{
+				charSelected--;
+			}
+			break;
+		case (gef_SONY_CTRL_UP):
+			switch (charSelected)
+			{
+			case 0:
+				if (char0 > 0)	char0--;
+				else char0 = 35;
+				break;
+			case 1:
+				if (char1 > 0) char1--;
+				else char1 = 35;
+				break;
+			case 2:
+				if (char2 > 0) char2--;
+				else char2 = 35;
+				break;
+			default:
+				break;
+			}
+			break;
+		case (gef_SONY_CTRL_DOWN):
+			switch (charSelected)
+			{
+			case 0:
+				if (char0 < 35)	char0++;
+				else char0 = 0;
+				break;
+			case 1:
+				if (char1 < 35) char1++;
+				else char1 = 0;
+				break;
+			case 2:
+				if (char2 < 35) char2++;
+				else char2 = 0;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	case SceneApp::LEADERBOARD:
+		leaderboardSway += frame_time * 1.4f;
+		if (controller->buttons_pressed() == gef_SONY_CTRL_CROSS)
+		{
+			IntervalRelease();
+			gameState = MENU;
+			FrontendInit();
+		}
+		break;
+	case SceneApp::EXIT:
+		if (timer > 1)
+		{
+			SaveScores();
+			IntervalRelease();
+			return false;
+		}
+		break;
+	default:
+		break;
 	}
 
 	return true;
@@ -1122,7 +1569,21 @@ void SceneApp::IntervalRender()
 			1.0f,
 			0xffffffff,
 			gef::TJ_CENTRE,
-			"Game Over! \n\nYour score: ");
+			"Game Over! \n\nYour score: %i", points);
+		break;
+	case SceneApp::NEWSCORE:
+		RenderScores();
+		break;
+	case SceneApp::LEADERBOARD:
+		RenderLeaderboard();
+
+		gef::Sprite button;
+		button.set_texture(crossButton);
+		button.set_position(gef::Vector4(platform_.width() * 0.05f, platform_.height() * 0.1f, -0.99f));
+		button.set_height(32.0f);
+		button.set_width(32.0f);
+		sprite_renderer_->DrawSprite(button);
+
 		break;
 	case SceneApp::EXIT:
 		font_->RenderText(
