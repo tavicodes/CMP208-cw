@@ -46,6 +46,9 @@ void SceneApp::Init()
 		alph.push_back(i + '0');
 	}
 
+	soundVol = 7;
+	musicVol = 7;
+
 	gameState = INIT;
 	IntervalInit();
 }
@@ -631,17 +634,17 @@ void SceneApp::RenderScores()
 	{
 	case 0:
 		scale0 = 5.f;
-		col0 = 0xdaa520ff;
+		col0 = 0xff025aad;
 		height0 = 80.f;
 		break;
 	case 1:
 		scale1 = 5.f;
-		col1 = 0xdaa520ff;
+		col1 = 0xff025aad;
 		height1 = 80.f;
 		break;
 	case 2:
 		scale2 = 5.f;
-		col2 = 0xdaa520ff;
+		col2 = 0xff025aad;
 		height2 = 80.f;
 		break;
 	default:
@@ -1020,6 +1023,12 @@ void SceneApp::FrontendRelease()
 {
 	delete crossButton;
 	crossButton = NULL;
+	delete squareButton;
+	squareButton = NULL;
+	delete circleButton;
+	circleButton = NULL;
+	delete triangleButton;
+	triangleButton = NULL;
 }
 
 void SceneApp::FrontendUpdate(float frame_time)
@@ -1027,21 +1036,21 @@ void SceneApp::FrontendUpdate(float frame_time)
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 	switch (controller->buttons_pressed())
 	{
-	case (1 << 12):
+	case (gef_SONY_CTRL_CROSS):
 		FrontendRelease();
 		gameState = INGAME;
 		GameInit();
 		break;
-	case (1<<13):
+	case (gef_SONY_CTRL_CIRCLE):
 		FrontendRelease();
 		gameState = EXIT;
 		IntervalInit();
 		break;
-	case (1<<14):
+	case (gef_SONY_CTRL_TRIANGLE):
 		gameState = OPTIONS;
 		OptionsInit();
 		break;
-	case (1<<15):
+	case (gef_SONY_CTRL_SQUARE):
 		gameState = CREDITS;
 		CreditsInit();
 		break;
@@ -1065,13 +1074,13 @@ void SceneApp::FrontendRender()
 
 	// Render buttons
 	gef::Sprite button;
-	button.set_texture(triangleButton);
+	button.set_texture(crossButton);
 	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
 	button.set_height(32.0f);
 	button.set_width(32.0f);
 	sprite_renderer_->DrawSprite(button);
 
-	button.set_texture(crossButton);
+	button.set_texture(triangleButton);
 	button.set_position(gef::Vector4(platform_.width()*0.05f, platform_.height()*0.1f, -0.99f));
 	button.set_height(32.0f);
 	button.set_width(32.0f);
@@ -1139,7 +1148,9 @@ void SceneApp::GameInit()
 
 	SetupLights();
 	contacted = false;
+	lives = 3;
 	points = 0;
+	optSelected = 0;
 
 	// initialise the physics world
 	b2Vec2 gravity(0.0f, -5.f);
@@ -1156,6 +1167,10 @@ void SceneApp::GameInit()
 
 void SceneApp::GameRelease()
 {
+	contacted = NULL;
+	lives = NULL;
+	optSelected = NULL;
+	optSelected = NULL;
 
 	// destroy the ball objects and clear the vector
 	for (auto ball_obj : ball_vec_)
@@ -1207,104 +1222,153 @@ void SceneApp::GameRelease()
 
 	delete renderer_3d_;
 	renderer_3d_ = NULL;
-
 }
 
 void SceneApp::GameUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 
-	switch (controller->buttons_released())
+	float flipperSpeed = 750.f;
+
+	if (gameState == INGAME)
 	{
-	case (gef_SONY_CTRL_SQUARE):
-		for (int i = 0; i < flipper_vec_.size(); i++)
+		switch (controller->buttons_released())
 		{
-			if (flipper_vec_[i]->get_left())
+		case (gef_SONY_CTRL_SQUARE):
+			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
-				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
+				if (flipper_vec_[i]->get_left())
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(-flipperSpeed);
+				}
 			}
+			break;
+		case (gef_SONY_CTRL_CIRCLE):
+			for (int i = 0; i < flipper_vec_.size(); i++)
+			{
+				if (!flipper_vec_[i]->get_left())
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(flipperSpeed);
+				}
+			}
+			break;
+		case (40960):
+			for (int i = 0; i < flipper_vec_.size(); i++)
+			{
+				if (flipper_vec_[i]->get_left())
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(-flipperSpeed);
+				}
+				else
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(flipperSpeed);
+				}
+			}
+		default:
+			break;
 		}
-		break;
-	case (gef_SONY_CTRL_CIRCLE):
-		for (int i = 0; i < flipper_vec_.size(); i++)
+		switch (controller->buttons_pressed())
 		{
-			if (!flipper_vec_[i]->get_left())
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
-			}
-		}
-		break;
-	case (40960):
-		for (int i = 0; i < flipper_vec_.size(); i++)
-		{
-			if (flipper_vec_[i]->get_left())
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
-			}
-			else
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
-			}
-		}
-	default:
-		break;
-	}
-	switch (controller->buttons_pressed())
-	{
-	case (gef_SONY_CTRL_SELECT):
-		if (gameState == INGAME)
-		{
+		case (gef_SONY_CTRL_SELECT):
 			gameState = PAUSE;
+			return;
+			break;
+		case (gef_SONY_CTRL_CROSS):
+			GameRelease();
+			GameInit();
+			return;
+			break;
+		case (gef_SONY_CTRL_SQUARE):
+			for (int i = 0; i < flipper_vec_.size(); i++)
+			{
+				if (flipper_vec_[i]->get_left())
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(flipperSpeed);
+				}
+			}
+			break;
+		case (gef_SONY_CTRL_CIRCLE):
+			for (int i = 0; i < flipper_vec_.size(); i++)
+			{
+				if (!flipper_vec_[i]->get_left())
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(-flipperSpeed);
+				}
+			}
+			break;
+		case (40960):
+			for (int i = 0; i < flipper_vec_.size(); i++)
+			{
+				if (flipper_vec_[i]->get_left())
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(flipperSpeed);
+				}
+				else
+				{
+					flipper_joint_vec_[i]->SetMotorSpeed(-flipperSpeed);
+				}
+			}
+		default:
+			break;
 		}
-		else
+	}
+	else
+	{
+		switch (controller->buttons_pressed())
 		{
+		case (gef_SONY_CTRL_DOWN):
+			if (optSelected < 3)
+			{
+				optSelected++;
+			}
+			break;
+		case (gef_SONY_CTRL_UP):
+			if (optSelected > 0)
+			{
+				optSelected--;
+			}
+			break;
+		case (gef_SONY_CTRL_LEFT):
+			if (optSelected == 1 && soundVol > 0)
+			{
+				soundVol--;
+			}
+			else if (optSelected == 2 && musicVol > 0)
+			{
+				musicVol--;
+			}
+			break;
+		case (gef_SONY_CTRL_RIGHT):
+			if (optSelected == 1 && soundVol < 10)
+			{
+				soundVol++;
+			}
+			else if (optSelected == 2 && musicVol < 10)
+			{
+				musicVol++;
+			}
+			break;
+		case (gef_SONY_CTRL_CROSS):
+			if (optSelected == 0)
+			{
+				gameState = INGAME;
+				return;
+			}
+			else if (optSelected == 3)
+			{
+				GameRelease();
+				gameState = GAMEOVER;
+				IntervalInit();
+				return;
+			}
+			break;
+		case (gef_SONY_CTRL_SELECT):
 			gameState = INGAME;
+			return;
+			break;
+		default:
+			break;
 		}
-		return;
-		break;
-	case (gef_SONY_CTRL_TRIANGLE):
-		GameRelease();
-		gameState = GAMEOVER;
-		IntervalInit();
-		return;
-		break;
-	case (gef_SONY_CTRL_CROSS):
-		GameRelease();
-		GameInit();
-		return;
-		break;
-	case (gef_SONY_CTRL_SQUARE):
-		for (int i = 0; i < flipper_vec_.size(); i++)
-		{
-			if (flipper_vec_[i]->get_left())
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
-			}
-		}
-		break;
-	case (gef_SONY_CTRL_CIRCLE):
-		for (int i = 0; i < flipper_vec_.size(); i++)
-		{
-			if (!flipper_vec_[i]->get_left())
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
-			}
-		}
-		break;
-	case (40960):
-		for (int i = 0; i < flipper_vec_.size(); i++)
-		{
-			if (flipper_vec_[i]->get_left())
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(500.f);
-			}
-			else
-			{
-				flipper_joint_vec_[i]->SetMotorSpeed(-500.f);
-			}
-		}
-	default:
-		break;
 	}
 
 	if (gameState == INGAME)
@@ -1382,6 +1446,68 @@ void SceneApp::GameRender()
 	}
 	else
 	{
+		UInt32 highlight0 = 0xffffffff, highlight1 = 0xffffffff, highlight2 = 0xffffffff, highlight3 = 0xffffffff;
+		switch (optSelected)
+		{
+		case 0:
+			highlight0 = 0xff025aad;
+			break;
+		case 1:
+			highlight1 = 0xff025aad;
+			break;
+		case 2:
+			highlight2 = 0xff025aad;
+			break;
+		case 3:
+			highlight3 = 0xff025aad;
+			break;
+		default:
+			break;
+		}
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.4f - 60.f, -0.99f),
+			1.0f,
+			highlight0,
+			gef::TJ_CENTRE,
+			"Resume");
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.35f, platform_.height() * 0.4f - 20.f, -0.99f),
+			1.0f,
+			highlight1,
+			gef::TJ_RIGHT,
+			"Sound Volume: ");
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.35f, platform_.height() * 0.4f + 20.f, -0.99f),
+			1.0f,
+			highlight2,
+			gef::TJ_RIGHT,
+			"Music Volume: ");
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.4f + 60.f, -0.99f),
+			1.0f,
+			highlight3,
+			gef::TJ_CENTRE,
+			"Quit");
+
+		gef::Sprite soundSquare;
+		soundSquare.set_height(20.f);
+		soundSquare.set_width(20.f);
+
+		for (int i = 0; i < soundVol; i++)
+		{
+			soundSquare.set_position(gef::Vector4(platform_.width() * 0.37f + i * 25.f, platform_.height() * 0.4f - 5.f, -0.99f));
+			sprite_renderer_->DrawSprite(soundSquare);
+		}
+		for (int i = 0; i < musicVol; i++)
+		{
+			soundSquare.set_position(gef::Vector4(platform_.width() * 0.37f + i * 25.f, platform_.height() * 0.4f + 35.f, -0.99f));
+			sprite_renderer_->DrawSprite(soundSquare);
+		}
 
 		font_->RenderText(sprite_renderer_,
 			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.7f, -0.99f),
@@ -1401,16 +1527,22 @@ void SceneApp::IntervalInit()
 	char1 = 0;
 	char2 = 0;
 	leaderboardSway = 0;
+
+	crossButton = CreateTextureFromPNG("playstation-cross-dark-icon.png", platform_);
 }
 
 void SceneApp::IntervalRelease()
 {
+	points = NULL;
 	timer = NULL;
 	charSelected = NULL;
 	char0 = NULL;
 	char1 = NULL;
 	char2 = NULL;
 	leaderboardSway = NULL;
+
+	delete crossButton;
+	crossButton = NULL;
 }
 
 bool SceneApp::IntervalUpdate(float frame_time)
@@ -1550,6 +1682,7 @@ void SceneApp::IntervalRender()
 {
 	sprite_renderer_->Begin();
 
+	gef::Sprite button;
 	// render text
 	switch (gameState)
 	{
@@ -1565,24 +1698,82 @@ void SceneApp::IntervalRender()
 	case SceneApp::GAMEOVER:
 		font_->RenderText(
 			sprite_renderer_,
-			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+			gef::Vector4(platform_.width()*0.5f, platform_.height()*0.4f, -0.99f),
 			1.0f,
 			0xffffffff,
 			gef::TJ_CENTRE,
-			"Game Over! \n\nYour score: %i", points);
+			"Game Over!");
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.4f + 30.f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Your score: %i", points);
+
+		button.set_texture(crossButton);
+		button.set_position(gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.8f, -0.99f));
+		button.set_height(40.0f);
+		button.set_width(40.0f);
+		sprite_renderer_->DrawSprite(button);
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.8f + 30.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Press to continue");
 		break;
 	case SceneApp::NEWSCORE:
 		RenderScores();
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.3f - 10.f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"New high score!");
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.3f + 20.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Enter your name below using the dpad:");
+
+		button.set_texture(crossButton);
+		button.set_position(gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.8f, -0.99f));
+		button.set_height(40.0f);
+		button.set_width(40.0f);
+		sprite_renderer_->DrawSprite(button);
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.8f + 25.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Press to confirm");
 		break;
 	case SceneApp::LEADERBOARD:
 		RenderLeaderboard();
 
-		gef::Sprite button;
 		button.set_texture(crossButton);
-		button.set_position(gef::Vector4(platform_.width() * 0.05f, platform_.height() * 0.1f, -0.99f));
-		button.set_height(32.0f);
-		button.set_width(32.0f);
+		button.set_position(gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.8f, -0.99f));
+		button.set_height(40.0f);
+		button.set_width(40.0f);
 		sprite_renderer_->DrawSprite(button);
+
+		font_->RenderText(
+			sprite_renderer_,
+			gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.8f + 25.0f, -0.99f),
+			1.0f,
+			0xffffffff,
+			gef::TJ_CENTRE,
+			"Press to continue");
 
 		break;
 	case SceneApp::EXIT:
@@ -1604,10 +1795,15 @@ void SceneApp::IntervalRender()
 
 void SceneApp::OptionsInit()
 {
+	circleButton = CreateTextureFromPNG("playstation-circle-dark-icon.png", platform_);
+	optSelected = 0;
 }
 
 void SceneApp::OptionsRelease()
 {
+	delete circleButton;
+	circleButton = NULL;
+	optSelected = NULL;
 }
 
 void SceneApp::OptionsUpdate(float frame_time)
@@ -1615,9 +1811,53 @@ void SceneApp::OptionsUpdate(float frame_time)
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 	switch (controller->buttons_pressed())
 	{
-	case (1 << 14):
+	case (gef_SONY_CTRL_CIRCLE):
 		gameState = MENU;
 		FrontendInit();
+		break;
+	case (gef_SONY_CTRL_DOWN):
+		if (optSelected < 3)
+		{
+			optSelected++;
+		}
+		break;
+	case (gef_SONY_CTRL_UP):
+		if (optSelected > 0)
+		{
+			optSelected--;
+		}
+		break;
+	case (gef_SONY_CTRL_LEFT):
+		if (optSelected == 0 && soundVol > 0)
+		{
+			soundVol--;
+		}
+		else if (optSelected == 1 && musicVol > 0)
+		{
+			musicVol--;
+		}
+		break;
+	case (gef_SONY_CTRL_RIGHT):
+		if (optSelected == 0 && soundVol < 10)
+		{
+			soundVol++;
+		}
+		else if (optSelected == 1 && musicVol < 10)
+		{
+			musicVol++;
+		}
+		break;
+	case (gef_SONY_CTRL_CROSS):
+		if (optSelected == 2)
+		{
+			ResetScores();
+		}
+		else if (optSelected == 3)
+		{
+			IntervalInit();
+			gameState = LEADERBOARD;
+			OptionsRelease();
+		}
 		break;
 	default:
 		break;
@@ -1626,21 +1866,83 @@ void SceneApp::OptionsUpdate(float frame_time)
 
 void SceneApp::OptionsRender()
 {
+	UInt32 highlight0 = 0xffffffff, highlight1 = 0xffffffff, highlight2 = 0xffffffff, highlight3 = 0xffffffff;
+	switch (optSelected)
+	{
+	case 0:
+		highlight0 = 0xff025aad;
+		break;
+	case 1:
+		highlight1 = 0xff025aad;
+		break;
+	case 2:
+		highlight2 = 0xff025aad;
+		break;
+	case 3:
+		highlight3 = 0xff025aad;
+		break;
+	default:
+		break;
+	}
 	sprite_renderer_->Begin();
 
 	// render "OPTIONS" text
 	font_->RenderText(
 		sprite_renderer_,
-		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.3f, -0.99f),
 		1.0f,
 		0xffffffff,
 		gef::TJ_CENTRE,
 		"OPTIONS");
 
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.35f, platform_.height() * 0.4f - 20.f, -0.99f),
+		1.0f,
+		highlight0,
+		gef::TJ_RIGHT,
+		"Sound Volume: ");
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.35f, platform_.height() * 0.4f + 20.f, -0.99f),
+		1.0f,
+		highlight1,
+		gef::TJ_RIGHT,
+		"Music Volume: ");
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f - 20.0f, -0.99f),
+		1.0f,
+		highlight2,
+		gef::TJ_CENTRE,
+		"Reset Leaderboard");
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f + 20.0f, -0.99f),
+		1.0f,
+		highlight3,
+		gef::TJ_CENTRE,
+		"Show Leaderboard");
+
+	gef::Sprite soundSquare;
+	soundSquare.set_height(20.f);
+	soundSquare.set_width(20.f);
+
+	for (int i = 0; i < soundVol; i++)
+	{
+		soundSquare.set_position(gef::Vector4(platform_.width() * 0.37f + i * 25.f, platform_.height() * 0.4f - 5.f, -0.99f));
+		sprite_renderer_->DrawSprite(soundSquare);
+	}
+	for (int i = 0; i < musicVol; i++)
+	{
+		soundSquare.set_position(gef::Vector4(platform_.width() * 0.37f + i * 25.f, platform_.height() * 0.4f + 35.f, -0.99f));
+		sprite_renderer_->DrawSprite(soundSquare);
+	}
+
 	// Render buttons
 	gef::Sprite button;
-	button.set_texture(crossButton);
-	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	button.set_texture(circleButton);
+	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.8f, -0.99f));
 	button.set_height(32.0f);
 	button.set_width(32.0f);
 	sprite_renderer_->DrawSprite(button);
@@ -1648,7 +1950,7 @@ void SceneApp::OptionsRender()
 	// render "TO MENU" text
 	font_->RenderText(
 		sprite_renderer_,
-		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f + 32.0f, -0.99f),
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.8f + 32.0f, -0.99f),
 		1.0f,
 		0xffffffff,
 		gef::TJ_CENTRE,

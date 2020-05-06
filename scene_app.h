@@ -88,6 +88,13 @@ private:
 	float leaderboardSway;
 
 	//
+	// OPTION DECLARATIONS
+	//
+	int optSelected;
+	int soundVol;
+	int musicVol;
+
+	//
 	// GAME DECLARATIONS
 	//
 	gef::Renderer3D* renderer_3d_;
