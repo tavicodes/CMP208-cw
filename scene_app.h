@@ -57,11 +57,13 @@ private:
 	void InitFont();
 	void CleanUpFont();
 	void DrawHUD();
+	void DrawBG();
 
 	void SetupLights();
 
 	bool contacted;
 	void UpdateSimulation(float frame_time);
+	void LostLife(Ball* dead_ball);
     
 	gef::SpriteRenderer* sprite_renderer_;
 	gef::Font* font_;
@@ -69,6 +71,8 @@ private:
 
 	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, INGAME, PAUSE, GAMEOVER, NEWSCORE, LEADERBOARD, EXIT };
 	GAMESTATE gameState;
+
+	gef::Texture* simpleBG;
 
 	//
 	// FRONTEND DECLARATIONS
@@ -81,6 +85,7 @@ private:
 	//
 	// INTERVAL DECLARATIONS
 	//
+	gef::Texture* logo;
 	float timer;
 	std::vector<std::pair<std::string, unsigned int>>::iterator scorePos;
 	std::vector<char> alph;
@@ -99,6 +104,7 @@ private:
 	//
 	gef::Renderer3D* renderer_3d_;
 	PrimitiveBuilder* primitive_builder_;
+	gef::Texture* spaceBG;
 
 	int lives;
 	int points;

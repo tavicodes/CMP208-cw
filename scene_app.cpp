@@ -37,6 +37,9 @@ void SceneApp::Init()
 
 	LoadScores();
 
+	spaceBG = CreateTextureFromPNG("spacedust.png", platform_);
+	simpleBG = CreateTextureFromPNG("simplebg.png", platform_);
+
 	for (int i = 0; i < 26; i++)
 	{
 		alph.push_back(i + 'A');
@@ -135,9 +138,10 @@ void SceneApp::Render()
 
 void SceneApp::InitBall()
 {
+	int vecPos = ball_vec_.size();
 	// setup the mesh for the ball
 	ball_vec_.push_back(new Ball);
-	ball_vec_[0]->set_mesh(primitive_builder_->GetDefaultSphereMesh());
+	ball_vec_[vecPos]->set_mesh(primitive_builder_->GetDefaultSphereMesh());
 
 	// create a physics body for the ball
 	b2BodyDef ball_body_def;
@@ -159,13 +163,13 @@ void SceneApp::InitBall()
 	ball_fixture_def.filter.categoryBits = BALL;
 
 	// create the fixture on the rigid body
-	ball_body_vec_[0]->CreateFixture(&ball_fixture_def);
+	ball_body_vec_[vecPos]->CreateFixture(&ball_fixture_def);
 
 	// update visuals from simulation data
-	ball_vec_[0]->UpdateFromSimulation(ball_body_vec_[0]);
+	ball_vec_[vecPos]->UpdateFromSimulation(ball_body_vec_[vecPos]);
 
 	// create a connection between the rigid body and GameObject
-	ball_body_vec_[0]->SetUserData(ball_vec_[0]);
+	ball_body_vec_[vecPos]->SetUserData(ball_vec_[vecPos]);
 }
 
 void SceneApp::InitBoard()
@@ -387,7 +391,7 @@ void SceneApp::InitFlipperBumpers()
 void SceneApp::InitFlippers()
 {
 	// flipper dimensions
-	gef::Vector4 flipper_half_dimensions(2.15f, 0.3f, 0.5f);
+	gef::Vector4 flipper_half_dimensions(2.05f, 0.3f, 0.5f);
 	// setup the mesh for the flipper
 	flipper_mesh_ = primitive_builder_->CreateBoxMesh(flipper_half_dimensions);
 
@@ -415,7 +419,7 @@ void SceneApp::InitFlippers()
 
 	// flipper one
 
-	flipper_def.position = b2Vec2(-2.65f, -20.0f);
+	flipper_def.position = b2Vec2(-3.05f, -19.5f);
 	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
 
 	flipper_pin_def.position = flipper_def.position - b2Vec2(1.8f, 0);
@@ -431,7 +435,7 @@ void SceneApp::InitFlippers()
 
 	// flipper two
 
-	flipper_def.position = b2Vec2(2.65f, -20.0f);
+	flipper_def.position = b2Vec2(3.05f, -19.5f);
 	flipper_body_vec_.push_back(world_->CreateBody(&flipper_def));
 
 	flipper_pin_def.position = flipper_def.position + b2Vec2(1.8f, 0);
@@ -843,6 +847,24 @@ void SceneApp::DrawHUD()
 	}
 }
 
+void SceneApp::DrawBG()
+{
+	gef::Sprite background;
+	if (gameState == INGAME || gameState == PAUSE || gameState == GAMEOVER)
+	{
+		background.set_texture(spaceBG);
+	}
+	else
+	{
+		background.set_texture(simpleBG);
+	}
+	background.set_position(gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f, 1.f));
+	background.set_height(platform_.height());
+	background.set_width(platform_.width());
+	// draw 3d geometry
+	sprite_renderer_->DrawSprite(background);
+}
+
 void SceneApp::SetupLights()
 {
 	// grab the data for the default shader used for rendering 3D geometry
@@ -923,7 +945,9 @@ void SceneApp::UpdateSimulation(float frame_time)
 				}
 				break;
 			case LOSETRIGGER:
-				lives--;
+				LostLife((Ball*)bodyB->GetUserData());
+				contact = world_->GetContactList();
+				contact_count = world_->GetContactCount();
 				break;
 			case FLIPPER:
 				if (CheckBarriers())
@@ -936,6 +960,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 						filter.maskBits = BALL;
 						barrier_body_vec_[barrierCount]->GetFixtureList()->SetFilterData(filter);
 					}
+					InitBall();
 				}
 				
 				if (!contacted)
@@ -972,7 +997,9 @@ void SceneApp::UpdateSimulation(float frame_time)
 				}
 				break;
 			case LOSETRIGGER:
-				lives--;
+				LostLife((Ball*)bodyA->GetUserData());
+				contact = world_->GetContactList();
+				contact_count = world_->GetContactCount();
 				break;
 			case FLIPPER:
 				if (CheckBarriers())
@@ -985,6 +1012,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 						filter.maskBits = BALL;
 						barrier_body_vec_[barrierCount]->GetFixtureList()->SetFilterData(filter);
 					}
+					InitBall();
 				}
 				
 				if (!contacted)
@@ -1006,8 +1034,39 @@ void SceneApp::UpdateSimulation(float frame_time)
 			}
 		}
 
-		// Get next contact point
-		contact = contact->GetNext();
+		if (contact != NULL)
+		{			
+			// Get next contact point
+			contact = contact->GetNext();
+		}
+	}
+}
+
+void SceneApp::LostLife(Ball* dead_ball)
+{
+	for (int i = 0; i < ball_body_vec_.size(); i++)
+	{
+		if (ball_body_vec_[i]->GetUserData() == dead_ball)
+		{
+			world_->DestroyBody(ball_body_vec_[i]);
+			ball_body_vec_.erase(ball_body_vec_.begin() + i);
+		}
+	}
+	for (int i = 0; i < ball_vec_.size(); i++)
+	{
+		if (ball_vec_[i] == dead_ball)
+		{
+			delete dead_ball;
+			ball_vec_.erase(ball_vec_.begin() + i);
+		}
+	}
+	if (ball_vec_.empty())
+	{
+		if (lives > 0)
+		{
+			lives--;
+			InitBall();
+		}
 	}
 }
 
@@ -1062,6 +1121,8 @@ void SceneApp::FrontendUpdate(float frame_time)
 void SceneApp::FrontendRender()
 {
 	sprite_renderer_->Begin();
+
+	DrawBG();
 
 	// render "PRESS" text
 	font_->RenderText(
@@ -1228,13 +1289,19 @@ void SceneApp::GameUpdate(float frame_time)
 {
 	const gef::SonyController* controller = input_manager_->controller_input()->GetController(0);
 
-	float flipperSpeed = 750.f;
+	float flipperSpeed = 1000.f;
+
+	if (controller->buttons_pressed() > 0)
+	{
+		gef::DebugOut("%i\n", controller->buttons_pressed());
+	}
 
 	if (gameState == INGAME)
 	{
 		switch (controller->buttons_released())
 		{
 		case (gef_SONY_CTRL_SQUARE):
+		case (gef_SONY_CTRL_L1):
 			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
 				if (flipper_vec_[i]->get_left())
@@ -1244,6 +1311,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 			break;
 		case (gef_SONY_CTRL_CIRCLE):
+		case (gef_SONY_CTRL_R1):
 			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
 				if (!flipper_vec_[i]->get_left())
@@ -1253,6 +1321,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 			break;
 		case (40960):
+		case (3072):
 			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
 				if (flipper_vec_[i]->get_left())
@@ -1273,12 +1342,8 @@ void SceneApp::GameUpdate(float frame_time)
 			gameState = PAUSE;
 			return;
 			break;
-		case (gef_SONY_CTRL_CROSS):
-			GameRelease();
-			GameInit();
-			return;
-			break;
 		case (gef_SONY_CTRL_SQUARE):
+		case (gef_SONY_CTRL_L1):
 			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
 				if (flipper_vec_[i]->get_left())
@@ -1288,6 +1353,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 			break;
 		case (gef_SONY_CTRL_CIRCLE):
+		case (gef_SONY_CTRL_R1):
 			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
 				if (!flipper_vec_[i]->get_left())
@@ -1297,6 +1363,7 @@ void SceneApp::GameUpdate(float frame_time)
 			}
 			break;
 		case (40960):
+		case (3072):
 			for (int i = 0; i < flipper_vec_.size(); i++)
 			{
 				if (flipper_vec_[i]->get_left())
@@ -1375,6 +1442,12 @@ void SceneApp::GameUpdate(float frame_time)
 	{
 		UpdateSimulation(frame_time);
 	}
+	if (lives == 0)
+	{
+		GameRelease();
+		gameState = GAMEOVER;
+		IntervalInit();
+	}
 }
 
 void SceneApp::GameRender()
@@ -1401,7 +1474,6 @@ void SceneApp::GameRender()
 
 	// draw board
 	renderer_3d_->DrawMesh(board_);
-	renderer_3d_->DrawMesh(lose_trigger_);
 
 	// draw flippers
 	for (int flipperCount = 0; flipperCount < flipper_vec_.size(); flipperCount++)
@@ -1409,10 +1481,12 @@ void SceneApp::GameRender()
 		renderer_3d_->DrawMesh(*flipper_vec_[flipperCount]);
 	}
 
+	renderer_3d_->set_override_material(&primitive_builder_->red_material());
 	for (int bumperCount = 0; bumperCount < bumper_vec_.size(); bumperCount++)
 	{
 		renderer_3d_->DrawMesh(*bumper_vec_[bumperCount]);
 	}
+	renderer_3d_->set_override_material(NULL);
 
 	for (int barrierCount = 0; barrierCount < barrier_vec_.size(); barrierCount++)
 	{
@@ -1434,6 +1508,8 @@ void SceneApp::GameRender()
 
 	// start drawing sprites, but don't clear the frame buffer
 	sprite_renderer_->Begin(false);
+
+	DrawBG();
 
 	if (gameState == INGAME)
 	{
@@ -1528,6 +1604,7 @@ void SceneApp::IntervalInit()
 	char2 = 0;
 	leaderboardSway = 0;
 
+	logo = CreateTextureFromPNG("logo.png", platform_);
 	crossButton = CreateTextureFromPNG("playstation-cross-dark-icon.png", platform_);
 }
 
@@ -1554,7 +1631,7 @@ bool SceneApp::IntervalUpdate(float frame_time)
 	switch (gameState)
 	{
 	case INIT:
-		if (timer > 1)
+		if (timer > 3)
 		{
 			IntervalRelease();
 			gameState = MENU;
@@ -1682,6 +1759,8 @@ void SceneApp::IntervalRender()
 {
 	sprite_renderer_->Begin();
 
+	DrawBG();
+
 	gef::Sprite button;
 	// render text
 	switch (gameState)
@@ -1694,6 +1773,11 @@ void SceneApp::IntervalRender()
 			0xffffffff,
 			gef::TJ_CENTRE,
 			"Initialising Game");
+		button.set_texture(logo);
+		button.set_position(gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f, -0.99f));
+		button.set_height(202.f);
+		button.set_width(342.f);
+		sprite_renderer_->DrawSprite(button);
 		break;
 	case SceneApp::GAMEOVER:
 		font_->RenderText(
@@ -1886,6 +1970,8 @@ void SceneApp::OptionsRender()
 	}
 	sprite_renderer_->Begin();
 
+	DrawBG();
+
 	// render "OPTIONS" text
 	font_->RenderText(
 		sprite_renderer_,
@@ -1985,19 +2071,35 @@ void SceneApp::CreditsRender()
 {
 	sprite_renderer_->Begin();
 
+	DrawBG();
+
 	// render "CREDITS" text
 	font_->RenderText(
 		sprite_renderer_,
-		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f - 56.0f, -0.99f),
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.3f, -0.99f),
 		1.0f,
 		0xffffffff,
 		gef::TJ_CENTRE,
 		"CREDITS");
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f - 20.f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"Sound effects from ZapSplat.com");
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f + 20.f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"Music from Kevin Macleod: incompetech.filmmusic.io");
 
 	// Render buttons
 	gef::Sprite button;
 	button.set_texture(crossButton);
-	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f, -0.99f));
+	button.set_position(gef::Vector4(platform_.width()*0.5f, platform_.height()*0.8f, -0.99f));
 	button.set_height(32.0f);
 	button.set_width(32.0f);
 	sprite_renderer_->DrawSprite(button);
@@ -2005,7 +2107,7 @@ void SceneApp::CreditsRender()
 	// render "TO MENU" text
 	font_->RenderText(
 		sprite_renderer_,
-		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.5f + 32.0f, -0.99f),
+		gef::Vector4(platform_.width()*0.5f, platform_.height()*0.8f + 32.0f, -0.99f),
 		1.0f,
 		0xffffffff,
 		gef::TJ_CENTRE,
