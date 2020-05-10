@@ -35,10 +35,16 @@ void SceneApp::Init()
 	// initialise input manager
 	input_manager_ = gef::InputManager::Create(platform_);
 
+	audio_manager_ = gef::AudioManager::Create();
+
 	LoadScores();
 
 	spaceBG = CreateTextureFromPNG("spacedust.png", platform_);
 	simpleBG = CreateTextureFromPNG("simplebg.png", platform_);
+
+	soundFX[0] = audio_manager_->LoadSample("highSFX.ogg", platform_);
+	soundFX[1] = audio_manager_->LoadSample("mediumSFX.ogg", platform_);
+	soundFX[2] = audio_manager_->LoadSample("lowSFX.ogg", platform_);
 
 	for (int i = 0; i < 26; i++)
 	{
@@ -71,7 +77,6 @@ bool SceneApp::Update(float frame_time)
 {
 	fps_ = 1.0f / frame_time;
 
-
 	input_manager_->Update();
 
 	switch (gameState)
@@ -101,6 +106,17 @@ bool SceneApp::Update(float frame_time)
 	default:
 		break;
 	}
+
+	gef::VolumeInfo vol;
+	for (int i = 0; i < 3; i++)
+	{
+		audio_manager_->GetSampleVoiceVolumeInfo(i, vol);
+		vol.volume = soundVol*10;
+		audio_manager_->SetSampleVoiceVolumeInfo(i, vol);
+	}
+	audio_manager_->GetMusicVolumeInfo(vol);
+	vol.volume = musicVol*10;
+	audio_manager_->SetMusicVolumeInfo(vol);
 
 	return true;
 }
@@ -902,7 +918,6 @@ void SceneApp::UpdateSimulation(float frame_time)
 		flipper_vec_[flipperCount]->UpdateFromSimulation(flipper_body_vec_[flipperCount]);
 	}
 
-
 	// don't have to update the board visuals as it is static
 
 	// collision detection
@@ -911,7 +926,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 	// get contact count
 	int contact_count = world_->GetContactCount();
 
-	if (contact_count == 0)
+	if (contact_count == ball_vec_.size() - 1)
 	{
 		contacted = false;
 	}
@@ -929,6 +944,8 @@ void SceneApp::UpdateSimulation(float frame_time)
 			// DO COLLISION RESPONSE HERE
 			Barrier* barrier = NULL;
 
+			int sfx = std::rand() / ((RAND_MAX + 1) / 3);
+
 			switch (filterA.categoryBits)
 			{
 			case BARRIER:
@@ -940,6 +957,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 
 				if (!contacted)
 				{
+					audio_manager_->PlaySample(soundFX[sfx]);
 					points += 25;
 					contacted = true;
 				}
@@ -965,6 +983,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 				
 				if (!contacted)
 				{
+					audio_manager_->PlaySample(soundFX[sfx]);
 					points += 10;
 					contacted = true;
 				}
@@ -973,6 +992,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 				
 				if (!contacted)
 				{
+					audio_manager_->PlaySample(soundFX[sfx]);
 					points += 15;
 					contacted = true;
 				}
@@ -992,6 +1012,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 				
 				if (!contacted)
 				{
+					audio_manager_->PlaySample(soundFX[sfx]);
 					points += 25;
 					contacted = true;
 				}
@@ -1017,6 +1038,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 				
 				if (!contacted)
 				{
+					audio_manager_->PlaySample(soundFX[sfx]);
 					points += 10;
 					contacted = true;
 				}
@@ -1025,6 +1047,7 @@ void SceneApp::UpdateSimulation(float frame_time)
 				
 				if (!contacted)
 				{
+					audio_manager_->PlaySample(soundFX[sfx]);
 					points += 15;
 					contacted = true;
 				}
@@ -1206,6 +1229,24 @@ void SceneApp::GameInit()
 
 	// initialise primitive builder to make create some 3D geometry easier
 	primitive_builder_ = new PrimitiveBuilder(platform_);
+
+	audio_manager_->StopMusic();
+	int sfx = std::rand() / ((RAND_MAX + 1) / 3);
+	switch (sfx)
+	{
+	case 0:
+		musicSFX = audio_manager_->LoadMusic("Beauty-Flow.ogg", platform_);
+		break;
+	case 1:
+		musicSFX = audio_manager_->LoadMusic("EDM-Detection-Mode.ogg", platform_);
+		break;
+	case 2:
+		musicSFX = audio_manager_->LoadMusic("Inspired.ogg", platform_);
+		break;
+	default:
+		break;
+	}
+	audio_manager_->PlayMusic();
 
 	SetupLights();
 	contacted = false;

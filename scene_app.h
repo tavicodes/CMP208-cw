@@ -6,13 +6,15 @@
 #include "primitive_builder.h"
 #include <graphics/mesh_instance.h>
 #include <input/input_manager.h>
+#include <audio/audio_manager.h>
 #include "graphics/scene.h"
 #include <box2d/box2d.h>
 #include "game_object.h"
 #include <vector>
+#include <random>
+#include <iostream>
 #include <fstream>
 #include <sstream>
-
 
 // FRAMEWORK FORWARD DECLARATIONS
 namespace gef
@@ -68,11 +70,15 @@ private:
 	gef::SpriteRenderer* sprite_renderer_;
 	gef::Font* font_;
 	gef::InputManager* input_manager_;
+	gef::AudioManager* audio_manager_;
 
 	enum GAMESTATE { INIT, MENU, OPTIONS, CREDITS, INGAME, PAUSE, GAMEOVER, NEWSCORE, LEADERBOARD, EXIT };
 	GAMESTATE gameState;
 
 	gef::Texture* simpleBG;
+
+	int soundFX[3];
+	int musicSFX;
 
 	//
 	// FRONTEND DECLARATIONS
