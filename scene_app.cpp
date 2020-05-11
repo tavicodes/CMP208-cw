@@ -495,7 +495,7 @@ void SceneApp::InitLoseTrigger()
 {
 	lose_trigger_.set_type(LOSETRIGGER);
 	// lose trigger dimensions
-	gef::Vector4 lt_half_dimensions(6.5f, 0.2f, 0.5f);
+	gef::Vector4 lt_half_dimensions(8.5f, 0.2f, 0.5f);
 
 	// setup the mesh for the board
 	lose_trigger_mesh_ = primitive_builder_->CreateBoxMesh(lt_half_dimensions);
@@ -1231,17 +1231,18 @@ void SceneApp::GameInit()
 	primitive_builder_ = new PrimitiveBuilder(platform_);
 
 	audio_manager_->StopMusic();
+	audio_manager_->UnloadMusic();
 	int sfx = std::rand() / ((RAND_MAX + 1) / 3);
 	switch (sfx)
 	{
 	case 0:
-		musicSFX = audio_manager_->LoadMusic("Beauty-Flow.ogg", platform_);
+		musicSFX = audio_manager_->LoadMusic("Beauty-Flow.wav", platform_);
 		break;
 	case 1:
-		musicSFX = audio_manager_->LoadMusic("EDM-Detection-Mode.ogg", platform_);
+		musicSFX = audio_manager_->LoadMusic("EDM-Detection-Mode.wav", platform_);
 		break;
 	case 2:
-		musicSFX = audio_manager_->LoadMusic("Inspired.ogg", platform_);
+		musicSFX = audio_manager_->LoadMusic("Inspired.wav", platform_);
 		break;
 	default:
 		break;
@@ -1515,6 +1516,7 @@ void SceneApp::GameRender()
 
 	// draw board
 	renderer_3d_->DrawMesh(board_);
+	renderer_3d_->DrawMesh(lose_trigger_);
 
 	// draw flippers
 	for (int flipperCount = 0; flipperCount < flipper_vec_.size(); flipperCount++)
