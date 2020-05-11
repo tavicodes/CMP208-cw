@@ -856,10 +856,15 @@ void SceneApp::CleanUpFont()
 
 void SceneApp::DrawHUD()
 {
-	if(font_)
+	if(font_ && gameState == INGAME)
 	{
-		// display frame rate
-		font_->RenderText(sprite_renderer_, gef::Vector4(700.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_RIGHT, "FPS: %.1f", fps_);
+		// display lives
+		font_->RenderText(sprite_renderer_,
+			gef::Vector4(50.f, 10.f, -0.9f),
+			1.0f, 0xffffffff, gef::TJ_LEFT,
+			"Lives: %i", lives);
+		// display score
+		font_->RenderText(sprite_renderer_, gef::Vector4(400.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_CENTRE, "SCORE: %i", points);
 	}
 }
 
@@ -1516,7 +1521,6 @@ void SceneApp::GameRender()
 
 	// draw board
 	renderer_3d_->DrawMesh(board_);
-	renderer_3d_->DrawMesh(lose_trigger_);
 
 	// draw flippers
 	for (int flipperCount = 0; flipperCount < flipper_vec_.size(); flipperCount++)
@@ -1554,16 +1558,7 @@ void SceneApp::GameRender()
 
 	DrawBG();
 
-	if (gameState == INGAME)
-	{
-		font_->RenderText(sprite_renderer_, 
-			gef::Vector4(50.f, 10.f, -0.9f), 
-			1.0f, 0xffffffff, gef::TJ_LEFT, 
-			"Lives: %i", lives);
-		// display score
-		font_->RenderText(sprite_renderer_, gef::Vector4(400.f, 10.f, -0.9f), 1.0f, 0xffffffff, gef::TJ_CENTRE, "SCORE: %i", points);
-	}
-	else
+	if (gameState == PAUSE)
 	{
 		UInt32 highlight0 = 0xffffffff, highlight1 = 0xffffffff, highlight2 = 0xffffffff, highlight3 = 0xffffffff;
 		switch (optSelected)
@@ -2124,6 +2119,13 @@ void SceneApp::CreditsRender()
 		0xffffffff,
 		gef::TJ_CENTRE,
 		"CREDITS");
+	font_->RenderText(
+		sprite_renderer_,
+		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f - 60.f, -0.99f),
+		1.0f,
+		0xffffffff,
+		gef::TJ_CENTRE,
+		"Created by Octavia Lea");
 	font_->RenderText(
 		sprite_renderer_,
 		gef::Vector4(platform_.width() * 0.5f, platform_.height() * 0.5f - 20.f, -0.99f),
